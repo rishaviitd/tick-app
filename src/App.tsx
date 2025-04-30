@@ -8,6 +8,7 @@ import {
   Routes,
   Route,
   Navigate,
+  Outlet,
 } from "react-router-dom";
 import { AppLayout } from "./components/Layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -32,8 +33,18 @@ const queryClient = new QueryClient();
 
 // Login page redirect component
 const LoginRedirect = () => {
+  console.log("Redirecting to login page");
   window.location.href = "https://www.usetick.com/login";
   return null;
+};
+
+// Protected layout wrapper
+const ProtectedLayout = () => {
+  return (
+    <PrivateRoute>
+      <AppLayout />
+    </PrivateRoute>
+  );
 };
 
 const App = () => {
@@ -50,9 +61,9 @@ const App = () => {
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/auth/error" element={<AuthError />} />
 
-              {/* Protected routes */}
-              <Route path="/" element={<AppLayout />}>
-                <Route index element={<Dashboard />} />
+              {/* Protected routes - use the ProtectedLayout */}
+              <Route element={<ProtectedLayout />}>
+                <Route path="/" element={<Dashboard />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/class/:classId" element={<ClassDetail />} />
                 <Route
@@ -80,8 +91,8 @@ const App = () => {
                   element={<CreateAssignment />}
                 />
                 <Route path="/create-class" element={<CreateClass />} />
-                <Route path="grading" element={<GradingPage />} />
-                <Route path="analytics" element={<AnalyticsPage />} />
+                <Route path="/grading" element={<GradingPage />} />
+                <Route path="/analytics" element={<AnalyticsPage />} />
               </Route>
 
               {/* Student view might need different auth */}

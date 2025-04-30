@@ -39,7 +39,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Check auth on mount
   useEffect(() => {
     const checkAuthOnMount = async () => {
-      await checkAuth();
+      console.log("AuthContext: Initial auth check starting");
+      const result = await checkAuth();
+      console.log(
+        "AuthContext: Initial auth check complete, authenticated:",
+        result
+      );
       setIsLoading(false);
     };
 
@@ -53,10 +58,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (token) {
       // Store token in localStorage
       localStorage.setItem("token", token);
+      console.log("AuthContext: Token updated in state and localStorage");
 
       // Extract user ID from token
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
+        console.log("AuthContext: Parsed token payload:", payload);
         if (payload.user) {
           setUserId(payload.user.id || null);
           setUser({
@@ -64,8 +71,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             name: payload.user.name,
             email: payload.user.email,
           });
+          setIsAuthenticated(true);
+          console.log("AuthContext: User authenticated from token payload");
         }
-        setIsAuthenticated(true);
       } catch (error) {
         console.error("Failed to parse token:", error);
         setIsAuthenticated(false);
@@ -148,8 +156,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             name: payload.user.name,
             email: payload.user.email,
           });
+          // Don't set authenticated yet - wait for server verification
         }
-        setIsAuthenticated(true);
       } catch (error) {
         console.error("Failed to parse token:", error);
         localStorage.removeItem("token");
@@ -179,7 +187,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             "x-auth-token": storedToken,
             Authorization: `Bearer ${storedToken}`,
           },
-          // Remove credentials: include which can cause issues with CORS
           mode: "cors",
         });
 
@@ -188,9 +195,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (response.ok) {
           const data = await response.json();
           console.log("AuthContext: Verification successful, user data:", data);
+
+          // Ensure we set these in the right order
           setUserId(data.user?.id || null);
           setUser(data.user || null);
           setIsAuthenticated(true);
+
+          // Force a delay to ensure state updates
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          console.log("AuthContext: Authentication state set to true");
           return true;
         } else {
           console.log(
@@ -215,8 +229,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         // Network error - log more details
         console.warn("AuthContext: Network error during verification:", error);
-        // We've already validated the token client-side above
-        return isAuthenticated;
+
+        // Fall back to client-side validation but mark as not fully authenticated
+        console.log("AuthContext: Falling back to client-side validation");
+        setIsAuthenticated(false);
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to continue.",
+          variant: "destructive",
+        });
+        return false;
       }
     } catch (error) {
       console.error("AuthContext: Error checking auth:", error);
@@ -229,10 +251,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const login = (newToken: string) => {
+    console.log("AuthContext: Login called with new token");
     setToken(newToken);
+    setIsAuthenticated(true);
   };
 
   const logout = () => {
+    console.log("AuthContext: Logout called");
     localStorage.removeItem("token");
     setIsAuthenticated(false);
     setToken(null);
@@ -240,6 +265,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     window.location.href = import.meta.env.VITE_LANDING_PAGE_URL;
   };
+
+  // Log the current auth state whenever it changes
+  useEffect(() => {
+    console.log("AuthContext: Auth state updated", {
+      isAuthenticated,
+      isLoading,
+      userId,
+      hasToken: !!token,
+      hasUser: !!user,
+    });
+  }, [isAuthenticated, isLoading, userId, token, user]);
 
   return (
     <AuthContext.Provider
