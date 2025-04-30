@@ -1,137 +1,184 @@
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Plus, Users, FileText } from "lucide-react";
-import { ClassCard } from "@/components/Dashboard/ClassCard";
-import { useState, useEffect } from "react";
-import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/context/AuthContext";
+import { PlusCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import apiClient, { classApi } from "@/lib/api"; // Import the axios-based API client
 
-// Configure axios base URL
-axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
+// Debug component to test API calls
+const ApiDebugger = () => {
+  const { token, user } = useAuth();
+  const [apiResponse, setApiResponse] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
+  const testClassesApi = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      console.log("Testing API with axios client");
+
+      // Use the axios API client to fetch classes
+      const response = await apiClient.get(`/classes?teacher=${user?.id}`);
+      console.log("Classes API response:", response.data);
+
+      setApiResponse(response.data);
+    } catch (err) {
+      console.error("API test error:", err);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="mt-8 p-4 border border-red-300 rounded-md bg-red-50">
+      <h3 className="font-bold text-red-800 mb-2">API Debugger</h3>
+      <div className="mb-2">
+        <Button
+          onClick={testClassesApi}
+          disabled={isLoading}
+          variant="outline"
+          className="bg-white text-red-700 border-red-700"
+        >
+          Test Classes API
+        </Button>
+      </div>
+
+      {isLoading && <p className="text-gray-600">Testing API...</p>}
+
+      {error && (
+        <div className="mt-2 p-2 bg-red-100 border border-red-600 rounded">
+          <p className="text-red-800">{error}</p>
+        </div>
+      )}
+
+      {apiResponse && (
+        <div className="mt-2 overflow-auto max-h-48">
+          <pre className="text-xs">{JSON.stringify(apiResponse, null, 2)}</pre>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Types for our data
 interface Class {
   _id: string;
   title: string;
+  teacher: string;
   students: string[];
   assignments: string[];
 }
 
 const Dashboard = () => {
+  const { user, isAuthenticated, token } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [classes, setClasses] = useState<Class[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const isMobile = useIsMobile();
+  const [error, setError] = useState(null);
 
   useEffect(() => {
+    console.log("Dashboard: Component mounted, auth state:", {
+      isAuthenticated,
+      userId: user?.id,
+    });
+
     const fetchClasses = async () => {
       try {
-        // Try to get auth info from localStorage
-        let teacherId = null;
-        let token =
-          localStorage.getItem("token") || localStorage.getItem("authToken");
+        setIsLoading(true);
 
-        // Try to get user data in different formats
-        const userRaw = localStorage.getItem("user");
-
-        // Try parsing user object if it exists
-        if (userRaw) {
-          try {
-            const userData = JSON.parse(userRaw);
-            teacherId = userData.id || userData._id || userData.userId;
-          } catch (err) {
-            console.error("Failed to parse user data:", err);
-          }
-        }
-
-        // If still no userId, try direct keys
-        if (!teacherId) {
-          teacherId =
-            localStorage.getItem("userId") ||
-            localStorage.getItem("user_id") ||
-            localStorage.getItem("id");
-        }
+        // Use the authenticated user's ID directly
+        const teacherId = user?.id;
 
         if (!teacherId) {
-          console.error("No teacher ID found");
-          setIsLoading(false);
+          console.error("No teacher ID available");
+          setClasses([]);
           return;
         }
 
-        console.log("Fetching classes for teacher:", teacherId);
+        console.log("Dashboard: Fetching classes for teacher:", teacherId);
 
-        // Set auth header if token exists
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        // Use the axios API client
+        const response = await apiClient.get(`/classes?teacher=${teacherId}`);
+        const data = response.data;
 
-        // Fetch classes for this teacher
-        const response = await axios.get(
-          `/api/v1/classes?teacher=${teacherId}`,
-          { headers }
-        );
-        setClasses(response.data.data);
-        console.log("Classes fetched:", response.data);
-      } catch (error: any) {
-        console.error("Error fetching classes:", error);
+        console.log("Dashboard: Classes data:", data);
+
+        // Check if data has the expected structure
+        if (data.data && Array.isArray(data.data)) {
+          setClasses(data.data);
+        } else {
+          console.warn("Dashboard: Unexpected data format:", data);
+          setClasses([]);
+        }
+      } catch (err) {
+        console.error("Error fetching classes:", err);
         toast({
           title: "Error loading classes",
-          description:
-            error.response?.data?.message || "Failed to load your classes",
+          description: "Please try again later",
           variant: "destructive",
         });
+        setError("Failed to load classes");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchClasses();
-  }, [toast]);
+    if (isAuthenticated && user?.id) {
+      fetchClasses();
+    }
+  }, [toast, isAuthenticated, user, token]);
 
   return (
-    <div className="space-y-6 relative min-h-screen pb-28">
-      <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Manage your classes</p>
-        </div>
-        <Button
-          onClick={() => navigate("/create-class")}
-          className="mt-4 md:mt-0 bg-[#7359F8] hover:bg-[#6247e0] text-white flex items-center justify-center md:justify-start gap-2 px-4 py-2 rounded-full shadow w-full md:w-auto"
-        >
-          <Plus size={16} />
-          <span>Class</span>
-        </Button>
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+        <p className="text-gray-600">Manage your classes</p>
       </div>
 
-      {/* Classes Section */}
       <section>
+        <Button
+          onClick={() => navigate("/create-class")}
+          className="w-full bg-indigo-600 mb-8"
+        >
+          <PlusCircle className="mr-2 h-4 w-4" /> Class
+        </Button>
+
         {isLoading ? (
-          <div className="text-center py-8 text-muted-foreground">
-            Loading your classes...
-          </div>
+          <div className="text-center py-8">Loading your classes...</div>
+        ) : error ? (
+          <div className="text-center py-8 text-red-500">{error}</div>
         ) : classes.length > 0 ? (
           <div className="grid grid-cols-1 gap-4">
-            {classes.map((cls) => (
-              <ClassCard
-                key={cls._id}
-                id={cls._id}
-                name={cls.title}
-                section=""
-                studentCount={cls.students.length}
-                assignments={cls.assignments.length}
-                pending={0}
-                onClick={() => navigate(`/class/${cls._id}`)}
-                onImportStudents={() => {}}
-              />
+            {classes.map((classItem) => (
+              <div
+                key={classItem._id}
+                className="bg-white p-4 rounded-lg shadow-md cursor-pointer"
+                onClick={() => navigate(`/class/${classItem._id}`)}
+              >
+                <h3 className="font-medium text-lg">{classItem.title}</h3>
+                <p>
+                  {classItem.students.length} student
+                  {classItem.students.length !== 1 ? "s" : ""}
+                </p>
+              </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-8 text-gray-600">
             You have no classes yet. Create your first class!
           </div>
         )}
       </section>
+
+      {/* Always show debugger for now to help diagnose issues */}
+      <ApiDebugger />
     </div>
   );
 };

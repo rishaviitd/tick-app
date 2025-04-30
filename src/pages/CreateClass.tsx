@@ -21,9 +21,9 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
-import axios from "axios";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
@@ -33,9 +33,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-
-// Configure axios base URL
-axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
+import apiClient from "@/lib/api"; // Import the axios-based API client
 
 interface Student {
   full_name: string;
@@ -49,6 +47,7 @@ interface Student {
 const CreateClass = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, isAuthenticated } = useAuth(); // Get auth context
   const [className, setClassName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -75,7 +74,13 @@ const CreateClass = () => {
         console.log(`${key}:`, value);
       }
     }
-  }, []);
+
+    // Log auth state for debugging
+    console.log("CreateClass: Auth state:", {
+      isAuthenticated,
+      userId: user?.id,
+    });
+  }, [isAuthenticated, user]);
 
   // Check for duplicates whenever students change
   useEffect(() => {
@@ -286,288 +291,92 @@ const CreateClass = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Set the ref to true to indicate this is an intentional submit
     isIntentionalSubmit.current = true;
-    console.log("Form submission triggered", e.target);
 
-    // Prevent submission if there are duplicate roll numbers
-    if (duplicateWarnings.rollNumbers.length > 0) {
+    if (!className.trim()) {
       toast({
-        title: "Duplicate roll numbers",
-        description: "Please fix duplicate roll numbers before submitting",
+        title: "Class name is required",
         variant: "destructive",
       });
-      isIntentionalSubmit.current = false;
       return;
     }
 
-    // Prevent submission if there are duplicate mobile numbers
-    if (duplicateWarnings.mobileNumbers.length > 0) {
+    if (students.length === 0) {
       toast({
-        title: "Duplicate mobile numbers",
-        description: "Please fix duplicate mobile numbers before submitting",
+        title: "Please add at least one student",
         variant: "destructive",
       });
-      isIntentionalSubmit.current = false;
       return;
     }
 
-    // Only proceed if this is actually a submit attempt
-    if (!isIntentionalSubmit.current) {
-      console.log("Preventing unintentional form submission");
+    // Check for duplicates before submitting
+    if (
+      duplicateWarnings.rollNumbers.length > 0 ||
+      duplicateWarnings.mobileNumbers.length > 0
+    ) {
+      toast({
+        title: "Please fix duplicates before continuing",
+        description:
+          "There are duplicate roll numbers or mobile numbers in your student list",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsLoading(true);
 
-    if (!className.trim()) {
-      toast({
-        title: "Class name required",
-        description: "Please enter a name for your class",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    if (students.length === 0 && file) {
-      toast({
-        title: "Processing file",
-        description: "Please wait while we process the student data",
-      });
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      // Try to get auth info from localStorage - checking multiple possible formats
-      let teacherId = null;
-      let token =
-        localStorage.getItem("token") || localStorage.getItem("authToken");
-
-      // Try to get user data in different formats
-      const userRaw = localStorage.getItem("user");
-      const userDataRaw = localStorage.getItem("userData");
-      const authDataRaw = localStorage.getItem("authData");
-
-      // Try parsing user object if it exists
-      if (userRaw) {
-        try {
-          const userData = JSON.parse(userRaw);
-          teacherId = userData.id || userData._id || userData.userId;
-        } catch (err) {
-          console.error("Failed to parse user data:", err);
-        }
-      }
-
-      // Try parsing userData if it exists
-      if (!teacherId && userDataRaw) {
-        try {
-          const userData = JSON.parse(userDataRaw);
-          teacherId =
-            userData.id || userData._id || userData.userId || userData.user?.id;
-        } catch (err) {
-          console.error("Failed to parse userData:", err);
-        }
-      }
-
-      // Try parsing authData if it exists
-      if (!teacherId && authDataRaw) {
-        try {
-          const authData = JSON.parse(authDataRaw);
-          teacherId = authData.userId || authData.user?.id || authData.id;
-          token = authData.token || token;
-        } catch (err) {
-          console.error("Failed to parse authData:", err);
-        }
-      }
-
-      // If still no userId, try direct keys
-      if (!teacherId) {
-        teacherId =
-          localStorage.getItem("userId") ||
-          localStorage.getItem("user_id") ||
-          localStorage.getItem("id");
-      }
-
-      // Log what we found for debugging
-      console.log("Auth data found:", {
-        teacherId,
-        hasToken: !!token,
-        localStorage: {
-          hasUser: !!userRaw,
-          hasUserData: !!userDataRaw,
-          hasAuthData: !!authDataRaw,
-          hasDirectId: !!(
-            localStorage.getItem("userId") ||
-            localStorage.getItem("user_id") ||
-            localStorage.getItem("id")
-          ),
-        },
-      });
+      // Make sure we have the teacher's ID from auth context
+      const teacherId = user?.id;
 
       if (!teacherId) {
-        // Handle authentication error
         toast({
           title: "Authentication error",
-          description:
-            "You need to be logged in to create a class. Please log in and try again.",
+          description: "User ID not found. Please login again.",
           variant: "destructive",
         });
         setIsLoading(false);
-
-        // Redirect to login page after a delay
-        setTimeout(() => {
-          navigate("/login");
-        }, 2000);
         return;
       }
 
-      // Set auth header if token exists
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      console.log("Creating class with teacher ID:", teacherId);
 
-      // Clean student data before sending (remove UI-specific fields)
-      const cleanedStudents = students.map(
-        ({ id, isEditing, hasDuplicateRoll, ...student }) => ({
-          ...student,
-          // Ensure all fields are properly trimmed
-          full_name: student.full_name.trim(),
-          mobileNo: student.mobileNo.trim(),
-          rollNo: student.rollNo?.trim() || "",
-        })
-      );
-
-      const requestData = {
-        title: className.trim(),
-        teacherId,
-        students: cleanedStudents,
-      };
-
-      console.log("Sending class creation request:", requestData);
-
-      const response = await axios.post("/api/v1/classes", requestData, {
-        headers,
+      // Use the axios API client for the POST request
+      const response = await apiClient.post("/classes", {
+        title: className,
+        teacherId: teacherId,
+        students: students.map(
+          ({ id, isEditing, hasDuplicateRoll, ...rest }) => rest
+        ),
       });
+
       console.log("Class creation response:", response.data);
 
       toast({
         title: "Class created successfully",
-        description: `${className} has been created with ${students.length} students`,
+        description: `Created class "${className}" with ${students.length} students`,
       });
 
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 1500);
+      // Navigate to the dashboard or the new class page
+      navigate("/dashboard");
     } catch (error: any) {
-      console.error("Class creation error:", error);
+      console.error("Error creating class:", error);
 
-      let errorMessage = "An error occurred";
-      let errorDetails = null;
-
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        errorMessage =
-          error.response.data?.message ||
-          error.response.data?.error ||
-          `Server error: ${error.response.status}`;
-
-        // Handle duplicate mobile numbers error (status 409)
-        if (error.response.status === 409 && error.response.data?.duplicates) {
-          const duplicates = error.response.data.duplicates;
-
-          if (error.response.data?.type === "rollNo") {
-            // Handle duplicate roll numbers
-            errorMessage =
-              error.response.data?.message ||
-              "Students with these roll numbers already exist in this class";
-            // Update the UI to highlight these roll numbers
-            setStudents((prevStudents) =>
-              prevStudents.map((student) => ({
-                ...student,
-                hasDuplicateRoll:
-                  student.rollNo && duplicates.includes(student.rollNo.trim()),
-              }))
-            );
-
-            // Add a more specific explanation
-            const additionalContext =
-              "Roll numbers must be unique within a class, but can be reused in different classes";
-
-            errorDetails = (
-              <div className="space-y-2 mt-2">
-                <p className="text-sm text-amber-600">{additionalContext}</p>
-                <ul className="mt-2 text-sm">
-                  {duplicates.map((item: any, index: number) => (
-                    <li key={index}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            );
-          } else {
-            // Handle duplicate mobile numbers
-            errorMessage = "Students with these mobile numbers already exist";
-
-            errorDetails = (
-              <ul className="mt-2 text-sm">
-                {duplicates.map((item: any, index: number) => (
-                  <li key={index}>
-                    {typeof item === "object"
-                      ? `${item.full_name} (${item.mobileNo})`
-                      : item}
-                  </li>
-                ))}
-              </ul>
-            );
-          }
-        }
-
-        // Handle duplicates within the submitted data (status 400)
-        if (error.response.status === 400 && error.response.data?.duplicates) {
-          const duplicates = error.response.data.duplicates;
-
-          if (error.response.data?.type === "rollNo") {
-            errorMessage = "You have duplicate roll numbers in your input";
-            // Update the UI to highlight these roll numbers
-            setStudents((prevStudents) =>
-              prevStudents.map((student) => ({
-                ...student,
-                hasDuplicateRoll:
-                  student.rollNo && duplicates.includes(student.rollNo.trim()),
-              }))
-            );
-          } else {
-            errorMessage = "You have duplicate mobile numbers in your input";
-          }
-
-          errorDetails = (
-            <ul className="mt-2 text-sm">
-              {duplicates.map((item: string, index: number) => (
-                <li key={index}>{item}</li>
-              ))}
-            </ul>
-          );
-        }
-
-        console.error("Error response:", error.response.data);
-      } else if (error.request) {
-        // The request was made but no response was received
-        errorMessage = "No response from server. Please check your connection.";
+      // Handle API-specific errors
+      if (error.response && error.response.data) {
+        const errorMessage = error.response.data.message || error.message;
+        toast({
+          title: "Error creating class",
+          description: errorMessage,
+          variant: "destructive",
+        });
       } else {
-        // Something happened in setting up the request that triggered an Error
-        errorMessage = error.message;
+        toast({
+          title: "Error creating class",
+          description: error.message || "An unexpected error occurred",
+          variant: "destructive",
+        });
       }
-
-      toast({
-        title: "Error creating class",
-        description: (
-          <div>
-            {errorMessage}
-            {errorDetails}
-          </div>
-        ),
-        variant: "destructive",
-      });
     } finally {
       setIsLoading(false);
     }
