@@ -7,9 +7,11 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/context/AuthContext";
 
-// Configure axios base URL
-axios.defaults.baseURL = process.env.VITE_BACKEND_URL;
+// Configure axios base URL and defaults
+axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
+axios.defaults.withCredentials = true;
 
 interface Class {
   _id: string;
@@ -24,36 +26,32 @@ const Dashboard = () => {
   const [classes, setClasses] = useState<Class[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const isMobile = useIsMobile();
+  const { token, user } = useAuth();
 
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        // Try to get auth info from localStorage
-        let teacherId = null;
-        let token =
-          localStorage.getItem("token") || localStorage.getItem("authToken");
-
-        // Try to get user data in different formats
-        const userRaw = localStorage.getItem("user");
-
-        // Try parsing user object if it exists
-        if (userRaw) {
-          try {
-            const userData = JSON.parse(userRaw);
-            teacherId = userData.id || userData._id || userData.userId;
-          } catch (err) {
-            console.error("Failed to parse user data:", err);
-          }
+        // Get token from auth context
+        const authToken = token;
+        if (!authToken) {
+          console.error("No auth token available");
+          toast({
+            title: "Authentication error",
+            description: "Please log in again",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
         }
 
-        // If still no userId, try direct keys
-        if (!teacherId) {
-          teacherId =
-            localStorage.getItem("userId") ||
-            localStorage.getItem("user_id") ||
-            localStorage.getItem("id");
-        }
+        // Setup request headers
+        const headers = {
+          Authorization: `Bearer ${authToken}`,
+          "x-auth-token": authToken,
+        };
 
+        // Get teacher ID from auth context
+        const teacherId = user?.id;
         if (!teacherId) {
           console.error("No teacher ID found");
           setIsLoading(false);
@@ -61,9 +59,6 @@ const Dashboard = () => {
         }
 
         console.log("Fetching classes for teacher:", teacherId);
-
-        // Set auth header if token exists
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
         // Fetch classes for this teacher
         const response = await axios.get(
@@ -86,7 +81,7 @@ const Dashboard = () => {
     };
 
     fetchClasses();
-  }, [toast]);
+  }, [toast, token, user]);
 
   return (
     <div className="space-y-6 relative min-h-screen pb-28">

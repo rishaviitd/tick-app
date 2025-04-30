@@ -129,12 +129,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Verify with server
       try {
-        const response = await fetch("/api/v1/auth/verify", {
-          method: "GET",
-          headers: {
-            "x-auth-token": storedToken,
-          },
-        });
+        const response = await fetch(
+          `${process.env.VITE_BACKEND_URL || ""}/api/v1/auth/verify`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "x-auth-token": storedToken,
+              Authorization: `Bearer ${storedToken}`,
+            },
+            credentials: "include",
+          }
+        );
 
         if (response.ok) {
           const data = await response.json();
