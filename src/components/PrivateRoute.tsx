@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Loader } from "lucide-react";
 
 interface PrivateRouteProps {
@@ -11,20 +11,27 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const { isAuthenticated, isLoading, checkAuth } = useAuth();
   const location = useLocation();
   const [isVerifying, setIsVerifying] = useState(true);
+  const hasVerifiedRef = useRef(false);
+  const lastRenderedStateRef = useRef("");
 
+  // Only verify once on mount, not on every render
   useEffect(() => {
     const verifyAuth = async () => {
-      console.log("PrivateRoute: Starting auth verification");
-      // Run an additional check on component mount
-      await checkAuth();
-      setIsVerifying(false);
-      console.log("PrivateRoute: Auth verification complete:", {
-        isAuthenticated,
-      });
+      // Only run verification if not already done
+      if (!hasVerifiedRef.current) {
+        console.log("PrivateRoute: Starting auth verification");
+        // Run an additional check on component mount
+        await checkAuth();
+        setIsVerifying(false);
+        hasVerifiedRef.current = true;
+        console.log("PrivateRoute: Auth verification complete:", {
+          isAuthenticated,
+        });
+      }
     };
 
     verifyAuth();
-  }, [checkAuth]);
+  }, [checkAuth, isAuthenticated]);
 
   // Show a proper loading state
   if (isLoading || isVerifying) {
@@ -36,8 +43,14 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
     );
   }
 
-  // Log the state for debugging
-  console.log("PrivateRoute: Rendering with auth state:", { isAuthenticated });
+  // Log the state only when it changes, not on every render
+  const currentState = `auth:${isAuthenticated}`;
+  if (lastRenderedStateRef.current !== currentState) {
+    console.log("PrivateRoute: Rendering with auth state:", {
+      isAuthenticated,
+    });
+    lastRenderedStateRef.current = currentState;
+  }
 
   if (!isAuthenticated) {
     console.log("PrivateRoute: User not authenticated, redirecting to login");

@@ -4,6 +4,8 @@ import {
   useEffect,
   useState,
   ReactNode,
+  useCallback,
+  useRef,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -36,58 +38,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check auth on mount
-  useEffect(() => {
-    const checkAuthOnMount = async () => {
-      console.log("AuthContext: Initial auth check starting");
-      const result = await checkAuth();
-      console.log(
-        "AuthContext: Initial auth check complete, authenticated:",
-        result
-      );
-      setIsLoading(false);
-    };
+  // Use refs to track state without triggering re-renders
+  const authCheckedRef = useRef(false);
+  const lastLoggedStateRef = useRef("");
 
-    checkAuthOnMount();
-    // We want this effect to run only once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // When token changes, verify it with the server
-  useEffect(() => {
-    if (token) {
-      // Store token in localStorage
-      localStorage.setItem("token", token);
-      console.log("AuthContext: Token updated in state and localStorage");
-
-      // Extract user ID from token
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        console.log("AuthContext: Parsed token payload:", payload);
-        if (payload.user) {
-          setUserId(payload.user.id || null);
-          setUser({
-            id: payload.user.id,
-            name: payload.user.name,
-            email: payload.user.email,
-          });
-          setIsAuthenticated(true);
-          console.log("AuthContext: User authenticated from token payload");
-        }
-      } catch (error) {
-        console.error("Failed to parse token:", error);
-        setIsAuthenticated(false);
-        setUserId(null);
-        setUser(null);
-      }
-    }
-  }, [token]);
-
-  const checkAuth = async (): Promise<boolean> => {
+  // Memoize the checkAuth function to avoid recreation on each render
+  const checkAuth = useCallback(async (): Promise<boolean> => {
     try {
       // Get token from localStorage
       const storedToken = localStorage.getItem("token");
-      console.log("AuthContext: Checking token exists:", !!storedToken);
+
+      // Only log on actual changes to token state
+      const tokenState = storedToken ? "exists" : "missing";
+      if (lastLoggedStateRef.current !== tokenState) {
+        console.log("AuthContext: Checking token exists:", !!storedToken);
+        lastLoggedStateRef.current = tokenState;
+      }
 
       if (!storedToken) {
         setIsAuthenticated(false);
@@ -97,39 +63,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
 
-      // First try the debug endpoint to check connectivity
-      try {
-        console.log(
-          "AuthContext: Testing API connectivity with debug endpoint"
-        );
-        const debugUrl = `${
-          import.meta.env.VITE_BACKEND_URL
-        }/api/v1/auth/verify-debug`;
-        const debugResponse = await fetch(debugUrl, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "x-auth-token": storedToken,
-            Authorization: `Bearer ${storedToken}`,
-          },
-          mode: "cors",
-        });
-
-        console.log(
-          "AuthContext: Debug endpoint response status:",
-          debugResponse.status
-        );
-        if (debugResponse.ok) {
-          const debugData = await debugResponse.json();
-          console.log("AuthContext: Debug endpoint response:", debugData);
-        } else {
-          console.log("AuthContext: Failed to reach debug endpoint");
-        }
-      } catch (debugError) {
-        console.error("AuthContext: Error testing debug endpoint:", debugError);
-      }
-
-      // Continue with normal auth flow
       // Update token state
       setToken(storedToken);
 
@@ -168,6 +101,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
 
+      // Skip server verification if we've already done it once
+      if (authCheckedRef.current && isAuthenticated) {
+        return true;
+      }
+
       // Verify with server
       try {
         console.log(
@@ -178,7 +116,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const verifyUrl = `${
           import.meta.env.VITE_BACKEND_URL
         }/api/v1/auth/verify`;
-        console.log("Full verify URL:", verifyUrl);
 
         const response = await fetch(verifyUrl, {
           method: "GET",
@@ -201,8 +138,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(data.user || null);
           setIsAuthenticated(true);
 
-          // Force a delay to ensure state updates
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          // Mark auth as checked
+          authCheckedRef.current = true;
 
           console.log("AuthContext: Authentication state set to true");
           return true;
@@ -232,12 +169,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Fall back to client-side validation but mark as not fully authenticated
         console.log("AuthContext: Falling back to client-side validation");
-        setIsAuthenticated(false);
-        toast({
-          title: "Authentication Error",
-          description: "Please log in again to continue.",
-          variant: "destructive",
-        });
         return false;
       }
     } catch (error) {
@@ -248,12 +179,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       return false;
     }
-  };
+  }, [isAuthenticated]);
+
+  // Check auth only once on mount
+  useEffect(() => {
+    if (!authCheckedRef.current) {
+      const checkAuthOnMount = async () => {
+        console.log("AuthContext: Initial auth check starting");
+        const result = await checkAuth();
+        console.log(
+          "AuthContext: Initial auth check complete, authenticated:",
+          result
+        );
+        setIsLoading(false);
+      };
+
+      checkAuthOnMount();
+    }
+  }, [checkAuth]);
+
+  // When token changes, verify it with the server
+  useEffect(() => {
+    if (token) {
+      // Store token in localStorage
+      localStorage.setItem("token", token);
+      console.log("AuthContext: Token updated in state and localStorage");
+
+      // Extract user ID from token
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        console.log("AuthContext: Parsed token payload:", payload);
+        if (payload.user) {
+          setUserId(payload.user.id || null);
+          setUser({
+            id: payload.user.id,
+            name: payload.user.name,
+            email: payload.user.email,
+          });
+          setIsAuthenticated(true);
+          console.log("AuthContext: User authenticated from token payload");
+        }
+      } catch (error) {
+        console.error("Failed to parse token:", error);
+        setIsAuthenticated(false);
+        setUserId(null);
+        setUser(null);
+      }
+    }
+  }, [token]);
 
   const login = (newToken: string) => {
     console.log("AuthContext: Login called with new token");
     setToken(newToken);
     setIsAuthenticated(true);
+    authCheckedRef.current = true; // Consider authentication checked after login
   };
 
   const logout = () => {
@@ -263,10 +242,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(null);
     setUserId(null);
     setUser(null);
+    authCheckedRef.current = false; // Reset auth check flag on logout
     window.location.href = import.meta.env.VITE_LANDING_PAGE_URL;
   };
 
-  // Log the current auth state whenever it changes
+  // Log the current auth state when it changes, but not on every render
   useEffect(() => {
     console.log("AuthContext: Auth state updated", {
       isAuthenticated,
@@ -277,21 +257,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [isAuthenticated, isLoading, userId, token, user]);
 
+  // Memoize the context value to prevent unnecessary renders
+  const contextValue = {
+    isAuthenticated,
+    isLoading,
+    userId,
+    token,
+    user,
+    login,
+    logout,
+    checkAuth,
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated,
-        isLoading,
-        userId,
-        token,
-        user,
-        login,
-        logout,
-        checkAuth,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };
 
