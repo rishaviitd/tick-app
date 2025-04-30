@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -6,6 +6,15 @@ import { useAuth } from "@/context/AuthContext";
 import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import apiClient, { classApi } from "@/lib/api"; // Import the axios-based API client
+
+// Types for our data
+interface Class {
+  _id: string;
+  title: string;
+  teacher: string;
+  students: string[];
+  assignments: string[];
+}
 
 // Debug component to test API calls
 const ApiDebugger = () => {
@@ -65,75 +74,72 @@ const ApiDebugger = () => {
   );
 };
 
-// Types for our data
-interface Class {
-  _id: string;
-  title: string;
-  teacher: string;
-  students: string[];
-  assignments: string[];
-}
-
 const Dashboard = () => {
-  const { user, isAuthenticated, token } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [classes, setClasses] = useState<Class[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const isMobile = useIsMobile();
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+  const [hasInitiallyFetched, setHasInitiallyFetched] = useState(false);
 
+  // Create a memoized fetch function to avoid recreation on each render
+  const fetchClasses = useCallback(async () => {
+    if (!isAuthenticated || !user?.id) {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const teacherId = user.id;
+      console.log("Dashboard: Fetching classes for teacher:", teacherId);
+
+      const response = await apiClient.get(`/classes?teacher=${teacherId}`);
+      const data = response.data;
+
+      console.log("Dashboard: Classes data:", data);
+
+      // Check if data has the expected structure
+      if (data.data && Array.isArray(data.data)) {
+        setClasses(data.data);
+      } else {
+        console.warn("Dashboard: Unexpected data format:", data);
+        setClasses([]);
+      }
+    } catch (err) {
+      console.error("Error fetching classes:", err);
+      toast({
+        title: "Error loading classes",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+      setError("Failed to load classes");
+    } finally {
+      setIsLoading(false);
+      setHasInitiallyFetched(true);
+    }
+  }, [isAuthenticated, user?.id, toast]);
+
+  // Only fetch data once on mount, and when authentication/user changes
   useEffect(() => {
-    console.log("Dashboard: Component mounted, auth state:", {
+    console.log("Dashboard: useEffect triggered with:", {
       isAuthenticated,
       userId: user?.id,
+      hasInitiallyFetched,
     });
 
-    const fetchClasses = async () => {
-      try {
-        setIsLoading(true);
-
-        // Use the authenticated user's ID directly
-        const teacherId = user?.id;
-
-        if (!teacherId) {
-          console.error("No teacher ID available");
-          setClasses([]);
-          return;
-        }
-
-        console.log("Dashboard: Fetching classes for teacher:", teacherId);
-
-        // Use the axios API client
-        const response = await apiClient.get(`/classes?teacher=${teacherId}`);
-        const data = response.data;
-
-        console.log("Dashboard: Classes data:", data);
-
-        // Check if data has the expected structure
-        if (data.data && Array.isArray(data.data)) {
-          setClasses(data.data);
-        } else {
-          console.warn("Dashboard: Unexpected data format:", data);
-          setClasses([]);
-        }
-      } catch (err) {
-        console.error("Error fetching classes:", err);
-        toast({
-          title: "Error loading classes",
-          description: "Please try again later",
-          variant: "destructive",
-        });
-        setError("Failed to load classes");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (isAuthenticated && user?.id) {
+    if (!hasInitiallyFetched && isAuthenticated && user?.id) {
       fetchClasses();
     }
-  }, [toast, isAuthenticated, user, token]);
+  }, [isAuthenticated, user?.id, hasInitiallyFetched, fetchClasses]);
+
+  // Handle routing for class items
+  const handleClassClick = (classId: string) => {
+    navigate(`/class/${classId}`);
+  };
 
   return (
     <div>
@@ -159,8 +165,8 @@ const Dashboard = () => {
             {classes.map((classItem) => (
               <div
                 key={classItem._id}
-                className="bg-white p-4 rounded-lg shadow-md cursor-pointer"
-                onClick={() => navigate(`/class/${classItem._id}`)}
+                className="bg-white p-4 rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => handleClassClick(classItem._id)}
               >
                 <h3 className="font-medium text-lg">{classItem.title}</h3>
                 <p>
@@ -177,8 +183,8 @@ const Dashboard = () => {
         )}
       </section>
 
-      {/* Always show debugger for now to help diagnose issues */}
-      <ApiDebugger />
+      {/* Only show debugger in development */}
+      {import.meta.env.DEV && <ApiDebugger />}
     </div>
   );
 };
