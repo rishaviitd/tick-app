@@ -35,7 +35,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Configure axios base URL
-axios.defaults.baseURL = process.env.VITE_BACKEND_URL;
+axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
 
 interface Student {
   full_name: string;
