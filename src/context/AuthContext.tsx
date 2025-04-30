@@ -89,6 +89,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
 
+      // First try the debug endpoint to check connectivity
+      try {
+        console.log(
+          "AuthContext: Testing API connectivity with debug endpoint"
+        );
+        const debugUrl = `${
+          import.meta.env.VITE_BACKEND_URL
+        }/api/v1/auth/verify-debug`;
+        const debugResponse = await fetch(debugUrl, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "x-auth-token": storedToken,
+            Authorization: `Bearer ${storedToken}`,
+          },
+          mode: "cors",
+        });
+
+        console.log(
+          "AuthContext: Debug endpoint response status:",
+          debugResponse.status
+        );
+        if (debugResponse.ok) {
+          const debugData = await debugResponse.json();
+          console.log("AuthContext: Debug endpoint response:", debugData);
+        } else {
+          console.log("AuthContext: Failed to reach debug endpoint");
+        }
+      } catch (debugError) {
+        console.error("AuthContext: Error testing debug endpoint:", debugError);
+      }
+
+      // Continue with normal auth flow
       // Update token state
       setToken(storedToken);
 
@@ -129,27 +162,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Verify with server
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/api/v1/auth/verify`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              "x-auth-token": storedToken,
-              Authorization: `Bearer ${storedToken}`,
-            },
-            credentials: "include",
-          }
+        console.log(
+          "AuthContext: Attempting server verification with URL:",
+          `${import.meta.env.VITE_BACKEND_URL}/api/v1/auth/verify`
         );
+
+        const verifyUrl = `${
+          import.meta.env.VITE_BACKEND_URL
+        }/api/v1/auth/verify`;
+        console.log("Full verify URL:", verifyUrl);
+
+        const response = await fetch(verifyUrl, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "x-auth-token": storedToken,
+            Authorization: `Bearer ${storedToken}`,
+          },
+          // Remove credentials: include which can cause issues with CORS
+          mode: "cors",
+        });
+
+        console.log("AuthContext: Verify response status:", response.status);
 
         if (response.ok) {
           const data = await response.json();
+          console.log("AuthContext: Verification successful, user data:", data);
           setUserId(data.user?.id || null);
           setUser(data.user || null);
           setIsAuthenticated(true);
           return true;
         } else {
-          console.log("AuthContext: Server rejected token");
+          console.log(
+            "AuthContext: Server rejected token, status:",
+            response.status
+          );
+          // Try to read and log the error response
+          try {
+            const errorData = await response.json();
+            console.log("AuthContext: Error response:", errorData);
+          } catch (parseError) {
+            console.log("AuthContext: Could not parse error response");
+          }
+
           localStorage.removeItem("token");
           setIsAuthenticated(false);
           setToken(null);
@@ -158,8 +213,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return false;
         }
       } catch (error) {
-        // Network error - fall back to client-side validation
-        console.warn("AuthContext: Network error, using client validation");
+        // Network error - log more details
+        console.warn("AuthContext: Network error during verification:", error);
         // We've already validated the token client-side above
         return isAuthenticated;
       }
