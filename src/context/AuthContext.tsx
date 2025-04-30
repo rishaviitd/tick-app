@@ -161,6 +161,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setToken(null);
           setUserId(null);
           setUser(null);
+          authCheckedRef.current = true; // Still mark as checked to prevent infinite loading
           return false;
         }
       } catch (error) {
@@ -169,6 +170,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Fall back to client-side validation but mark as not fully authenticated
         console.log("AuthContext: Falling back to client-side validation");
+        authCheckedRef.current = true; // Still mark as checked to prevent infinite loading
+
+        // If we have user data from token, consider it authenticated for UX purposes
+        if (user) {
+          setIsAuthenticated(true);
+          return true;
+        }
         return false;
       }
     } catch (error) {
@@ -177,25 +185,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(null);
       setUserId(null);
       setUser(null);
+      authCheckedRef.current = true; // Still mark as checked to prevent infinite loading
       return false;
     }
   }, [isAuthenticated]);
 
   // Check auth only once on mount
   useEffect(() => {
-    if (!authCheckedRef.current) {
-      const checkAuthOnMount = async () => {
-        console.log("AuthContext: Initial auth check starting");
-        const result = await checkAuth();
-        console.log(
-          "AuthContext: Initial auth check complete, authenticated:",
-          result
-        );
-        setIsLoading(false);
-      };
+    const checkAuthOnMount = async () => {
+      console.log("AuthContext: Initial auth check starting");
+      const result = await checkAuth();
+      console.log(
+        "AuthContext: Initial auth check complete, authenticated:",
+        result
+      );
+      setIsLoading(false); // Always set loading to false regardless of authentication result
+    };
 
-      checkAuthOnMount();
-    }
+    checkAuthOnMount();
   }, [checkAuth]);
 
   // When token changes, verify it with the server
