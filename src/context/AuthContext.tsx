@@ -130,7 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Verify with server
       try {
         const response = await fetch(
-          `${process.env.VITE_BACKEND_URL || ""}/api/v1/auth/verify`,
+          `${import.meta.env.VITE_BACKEND_URL || ""}/api/v1/auth/verify`,
           {
             method: "GET",
             headers: {
@@ -183,7 +183,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(null);
     setUserId(null);
     setUser(null);
-    window.location.href = process.env.VITE_LANDING_PAGE_URL;
+    window.location.href = import.meta.env.VITE_LANDING_PAGE_URL;
   };
 
   return (

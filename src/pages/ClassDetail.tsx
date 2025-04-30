@@ -9,7 +9,7 @@ import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 
 // Configure axios base URL
-axios.defaults.baseURL = process.env.VITE_BACKEND_URL;
+axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
 
 interface Student {
   id: string;
