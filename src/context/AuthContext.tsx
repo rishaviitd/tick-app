@@ -130,7 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Verify with server
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL || ""}/api/v1/auth/verify`,
+          `${import.meta.env.VITE_BACKEND_URL}/api/v1/auth/verify`,
           {
             method: "GET",
             headers: {
