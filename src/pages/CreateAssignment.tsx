@@ -135,7 +135,7 @@ export const extractQuestionsFromFiles = async (
         }
 
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-exp:generateContent?key=${
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${
             import.meta.env.VITE_GOOGLE_API_KEY
           }`,
           {
@@ -495,7 +495,7 @@ const CreateAssignment = () => {
     try {
       // Call the AI API to generate a rubric
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-exp:generateContent?key=${
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${
           import.meta.env.VITE_GOOGLE_API_KEY
         }`,
         {
