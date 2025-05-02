@@ -629,9 +629,9 @@ const CreateAssignment = () => {
         title,
         maxMarks: calculatedMaxMarks,
         questions: questions.map((q) => ({
-          text: q.questionText,
-          maxMarks: q.maxMarks,
-          rubric: q.rubric || questionRubrics[q.id] || "",
+          text: q.questionText || "", // Ensure text is a string
+          maxMarks: q.maxMarks || 0,
+          rubric: q.rubric || (q.id && questionRubrics[q.id]) || "", // Ensure rubric is a string
         })),
         active: true, // Set as active by default
         classId: classId, // Pass the current classId from URL params
@@ -718,14 +718,17 @@ const CreateAssignment = () => {
       const draftData = {
         title,
         maxMarks: calculatedMaxMarks,
-        questions: extractedQuestions.map((q, index) => ({
-          text: q.text,
-          points: q.points || 0,
-          rubric:
-            questions[index]?.rubric ||
-            questionRubrics[questions[index]?.id] ||
-            "",
-        })),
+        questions: extractedQuestions.map((q, index) => {
+          const questionId = questions[index]?.id;
+          return {
+            text: q.text || "", // Ensure text is a string
+            points: q.points || 0,
+            rubric:
+              questionId && questionRubrics[questionId]
+                ? questionRubrics[questionId]
+                : questions[index]?.rubric || "", // Ensure rubric is a string
+          };
+        }),
       };
 
       console.log("Sending draft data:", draftData);
