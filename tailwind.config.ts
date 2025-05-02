@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -62,24 +63,22 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// tickAI brand colors
-				tickai: {
-					primary: '#58CC02', // Primary green
-					secondary: '#EEF9EE', // Very light green background
-					accent: '#51AA02', // Darker green for highlights
-					text: {
-						DEFAULT: '#333333', // Dark gray for body text
-						muted: '#6B7280', // Muted gray for low-priority text
-					}
+				// Education platform specific colors
+				edu: {
+					primary: '#4F46E5', // Indigo shade for primary actions
+					secondary: '#F0F4FF', // Light blue background
+					success: '#22C55E', // Green for success states
+					warning: '#F59E0B', // Amber for warnings
+					error: '#EF4444', // Red for errors
+					info: '#3B82F6', // Blue for information
+					gray: '#F9FAFB', // Light gray for backgrounds
+					border: '#E5E7EB', // Border color
 				}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
-			},
-			boxShadow: {
-				'tickai': '0 20px 40px -15px rgba(0,0,0,0.1)'
 			},
 			keyframes: {
 				'accordion-down': {
@@ -105,21 +104,12 @@ export default {
 					to: {
 						opacity: '1'
 					}
-				},
-				'float': {
-					'0%, 100%': { transform: 'translateY(0)' },
-					'50%': { transform: 'translateY(-10px)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
-				'fade-in': 'fade-in 0.3s ease-out',
-				'float': 'float 6s ease-in-out infinite'
-			},
-			fontFamily: {
-				sans: ['Inter', 'sans-serif'],
-				heading: ['Poppins', 'Inter', 'sans-serif']
+				'fade-in': 'fade-in 0.3s ease-out'
 			}
 		}
 	},
