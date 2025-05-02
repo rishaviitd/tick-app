@@ -10,7 +10,6 @@ import {
   Menu,
   User,
   X,
-  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -107,9 +106,13 @@ export const AppSidebar = () => {
 
             <div className="flex flex-col h-full p-4">
               <div className="flex items-center gap-3 px-4 py-3 mb-6">
-                <GraduationCap size={32} className="text-primary" />
-                <span className="text-xl font-bold text-sidebar-foreground">
-                  GradeAI
+                <img 
+                  src="/tick-ai-logo.svg" 
+                  alt="tick AI Logo" 
+                  className="w-8 h-8"
+                />
+                <span className="text-xl font-bold text-[#58CC02]">
+                  tick AI
                 </span>
               </div>
 
@@ -184,10 +187,14 @@ export const AppSidebar = () => {
       )}
     >
       <div className="flex items-center gap-3 px-4 py-5">
-        <GraduationCap size={28} className="text-primary min-w-[28px]" />
+        <img 
+          src="/tick-ai-logo.svg" 
+          alt="tick AI Logo" 
+          className="w-7 h-7 min-w-[28px]"
+        />
         {!isCollapsed && (
-          <span className="text-xl font-bold text-sidebar-foreground">
-            GradeAI
+          <span className="text-xl font-bold text-[#58CC02]">
+            tick AI
           </span>
         )}
       </div>
@@ -252,29 +259,49 @@ export const AppSidebar = () => {
               </TooltipTrigger>
               <TooltipContent side="right">
                 <p>{user?.name || "Guest User"}</p>
-                <p className="text-xs">{user?.email || "Teacher"}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
 
-        {!isCollapsed && (
-          <button
-            onClick={logout}
-            className="flex items-center gap-3 text-sidebar-foreground px-4 py-3 w-full hover:bg-sidebar-accent/50 rounded-lg transition-colors mt-2"
-          >
-            <LogOut size={16} />
-            <span>Logout</span>
-          </button>
-        )}
-      </div>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleSidebar}
+                className="w-full px-4 py-3 flex items-center gap-3 text-sidebar-foreground hover:bg-sidebar-accent/50 rounded-lg transition-colors mt-2"
+              >
+                <Menu size={16} />
+                {!isCollapsed && <span>Collapse Sidebar</span>}
+              </button>
+            </TooltipTrigger>
+            {isCollapsed && (
+              <TooltipContent side="right">
+                <p>Expand Sidebar</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
 
-      <button
-        onClick={toggleSidebar}
-        className="self-end p-2 m-2 rounded-full hover:bg-sidebar-accent/50 text-sidebar-foreground"
-      >
-        <Menu size={20} />
-      </button>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={logout}
+                className="w-full px-4 py-3 flex items-center gap-3 text-sidebar-foreground hover:bg-sidebar-accent/50 rounded-lg transition-colors mt-2"
+              >
+                <LogOut size={16} />
+                {!isCollapsed && <span>Logout</span>}
+              </button>
+            </TooltipTrigger>
+            {isCollapsed && (
+              <TooltipContent side="right">
+                <p>Logout</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+      </div>
     </div>
   );
 };
