@@ -830,6 +830,7 @@ const CreateAssignment = () => {
       const response = await fetch(draftsEndpoint, {
         headers: {
           "x-auth-token": token as string,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -839,11 +840,15 @@ const CreateAssignment = () => {
       }
 
       const data = await response.json();
+      console.log("Received drafts:", data);
+
       // Add index as id to each draft
       const draftsWithIds = (data.drafts || []).map((draft, index) => ({
         ...draft,
         id: index,
       }));
+
+      console.log("Drafts with IDs:", draftsWithIds);
       setDrafts(draftsWithIds);
     } catch (error) {
       console.error("Error loading drafts:", error);
@@ -949,18 +954,27 @@ const CreateAssignment = () => {
     try {
       const token = authToken;
 
+      console.log("Deleting draft with ID:", draftId);
+
       // Use the full API URL
       const draftUrl = getApiUrl(`/assignments/drafts/${draftId}`);
+      console.log("DELETE request to:", draftUrl);
+
       const response = await fetch(draftUrl, {
         method: "DELETE",
         headers: {
           "x-auth-token": token as string,
+          Authorization: `Bearer ${token}`,
         },
       });
 
+      // Log the response for debugging
+      console.log("Delete response status:", response.status);
+      const responseData = await response.json();
+      console.log("Delete response:", responseData);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete draft");
+        throw new Error(responseData.message || "Failed to delete draft");
       }
 
       // Remove the draft from the list
