@@ -58,7 +58,8 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
 
-// API paths - use relative paths to work with the vite proxy
+// API paths - use environment variable for backend URL to work in all environments
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "";
 const API_PATH = "/api/v1";
 
 // Model interfaces for the app
@@ -314,6 +315,11 @@ interface Draft {
   }[];
   lastUpdated: string;
 }
+
+// Create a full API URL based on environment
+const getApiUrl = (path: string) => {
+  return `${API_BASE_URL}${API_PATH}${path}`;
+};
 
 const CreateAssignment = () => {
   const [activeTab, setActiveTab] = useState("questions");
@@ -637,8 +643,12 @@ const CreateAssignment = () => {
         classId: classId, // Pass the current classId from URL params
       };
 
+      // Use the full API URL
+      const assignmentEndpoint = getApiUrl("/assignments");
+      console.log("Sending request to:", assignmentEndpoint);
+
       // Call the API to create the assignment
-      const response = await fetch(`${API_PATH}/assignments`, {
+      const response = await fetch(assignmentEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -657,12 +667,15 @@ const CreateAssignment = () => {
       // If this was created from a draft, delete the draft
       if (title) {
         try {
-          await fetch(`${API_PATH}/drafts/${encodeURIComponent(title)}`, {
-            method: "DELETE",
-            headers: {
-              "x-auth-token": token as string,
-            },
-          });
+          await fetch(
+            getApiUrl(`/assignments/drafts/${encodeURIComponent(title)}`),
+            {
+              method: "DELETE",
+              headers: {
+                "x-auth-token": token as string,
+              },
+            }
+          );
         } catch (error) {
           console.error(
             "Error deleting draft after creating assignment:",
@@ -733,7 +746,9 @@ const CreateAssignment = () => {
 
       console.log("Sending draft data:", draftData);
       console.log("Using token:", token);
-      const draftEndpoint = `${API_PATH}/drafts`;
+
+      // Use the full API URL with drafts endpoint
+      const draftEndpoint = getApiUrl("/assignments/drafts");
       console.log("Sending request to:", draftEndpoint);
 
       // Call the API to save the draft
@@ -785,7 +800,9 @@ const CreateAssignment = () => {
     try {
       setIsLoadingDrafts(true);
       const token = authToken;
-      const draftsEndpoint = `${API_PATH}/drafts`;
+
+      // Use the full API URL with drafts endpoint
+      const draftsEndpoint = getApiUrl("/assignments/drafts");
       console.log("Fetching drafts from:", draftsEndpoint);
 
       const response = await fetch(draftsEndpoint, {
@@ -821,14 +838,16 @@ const CreateAssignment = () => {
     }
     try {
       const token = authToken;
-      const response = await fetch(
-        `${API_PATH}/drafts/${encodeURIComponent(draftTitle)}`,
-        {
-          headers: {
-            "x-auth-token": token as string,
-          },
-        }
+
+      // Use the full API URL
+      const draftUrl = getApiUrl(
+        `/assignments/drafts/${encodeURIComponent(draftTitle)}`
       );
+      const response = await fetch(draftUrl, {
+        headers: {
+          "x-auth-token": token as string,
+        },
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -904,15 +923,17 @@ const CreateAssignment = () => {
     }
     try {
       const token = authToken;
-      const response = await fetch(
-        `${API_PATH}/drafts/${encodeURIComponent(draftTitle)}`,
-        {
-          method: "DELETE",
-          headers: {
-            "x-auth-token": token as string,
-          },
-        }
+
+      // Use the full API URL
+      const draftUrl = getApiUrl(
+        `/assignments/drafts/${encodeURIComponent(draftTitle)}`
       );
+      const response = await fetch(draftUrl, {
+        method: "DELETE",
+        headers: {
+          "x-auth-token": token as string,
+        },
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
