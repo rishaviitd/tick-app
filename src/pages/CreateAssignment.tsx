@@ -314,6 +314,7 @@ interface Draft {
     rubric?: string;
   }[];
   lastUpdated: string;
+  id: number;
 }
 
 // Create a full API URL based on environment
@@ -665,17 +666,38 @@ const CreateAssignment = () => {
       const data = await response.json();
 
       // If this was created from a draft, delete the draft
-      if (title) {
+      // Only attempt to delete if the title is a valid non-empty string
+      if (title && title.trim()) {
         try {
-          await fetch(
-            getApiUrl(`/assignments/drafts/${encodeURIComponent(title)}`),
-            {
-              method: "DELETE",
-              headers: {
-                "x-auth-token": token as string,
-              },
-            }
+          console.log(`Attempting to delete draft with title: "${title}"`);
+
+          // Delete the draft with the same title
+          const deleteUrl = getApiUrl(
+            `/assignments/drafts/${encodeURIComponent(title.trim())}`
           );
+          console.log(`Sending DELETE request to: ${deleteUrl}`);
+
+          const deleteResponse = await fetch(deleteUrl, {
+            method: "DELETE",
+            headers: {
+              "x-auth-token": token as string,
+            },
+          });
+
+          if (deleteResponse.ok) {
+            console.log(`Successfully deleted draft: "${title}"`);
+          } else {
+            console.log(
+              `Draft deletion returned status: ${deleteResponse.status}`
+            );
+            if (deleteResponse.status === 404) {
+              console.log(
+                "Draft not found, this is normal if it wasn't saved as a draft first"
+              );
+            } else {
+              console.warn(`Failed to delete draft: "${title}"`);
+            }
+          }
         } catch (error) {
           console.error(
             "Error deleting draft after creating assignment:",
@@ -817,7 +839,12 @@ const CreateAssignment = () => {
       }
 
       const data = await response.json();
-      setDrafts(data.drafts || []);
+      // Add index as id to each draft
+      const draftsWithIds = (data.drafts || []).map((draft, index) => ({
+        ...draft,
+        id: index,
+      }));
+      setDrafts(draftsWithIds);
     } catch (error) {
       console.error("Error loading drafts:", error);
       toast({
@@ -831,7 +858,7 @@ const CreateAssignment = () => {
     }
   };
 
-  const loadDraft = async (draftTitle: string) => {
+  const loadDraft = async (draftId: number) => {
     if (!isAuthenticated) {
       navigate("/login", { state: { returnTo: location.pathname } });
       return;
@@ -840,9 +867,7 @@ const CreateAssignment = () => {
       const token = authToken;
 
       // Use the full API URL
-      const draftUrl = getApiUrl(
-        `/assignments/drafts/${encodeURIComponent(draftTitle)}`
-      );
+      const draftUrl = getApiUrl(`/assignments/drafts/${draftId}`);
       const response = await fetch(draftUrl, {
         headers: {
           "x-auth-token": token as string,
@@ -916,7 +941,7 @@ const CreateAssignment = () => {
     }
   };
 
-  const deleteDraft = async (draftTitle: string) => {
+  const deleteDraft = async (draftId: number) => {
     if (!isAuthenticated) {
       navigate("/login", { state: { returnTo: location.pathname } });
       return;
@@ -925,9 +950,7 @@ const CreateAssignment = () => {
       const token = authToken;
 
       // Use the full API URL
-      const draftUrl = getApiUrl(
-        `/assignments/drafts/${encodeURIComponent(draftTitle)}`
-      );
+      const draftUrl = getApiUrl(`/assignments/drafts/${draftId}`);
       const response = await fetch(draftUrl, {
         method: "DELETE",
         headers: {
@@ -941,11 +964,11 @@ const CreateAssignment = () => {
       }
 
       // Remove the draft from the list
-      setDrafts(drafts.filter((d) => d.title !== draftTitle));
+      setDrafts(drafts.filter((d) => d.id !== draftId));
 
       toast({
         title: "Draft Deleted",
-        description: `Draft "${draftTitle}" has been deleted.`,
+        description: "Draft has been deleted successfully.",
       });
     } catch (error) {
       console.error("Error deleting draft:", error);
@@ -1075,14 +1098,14 @@ const CreateAssignment = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => loadDraft(draft.title)}
+                        onClick={() => loadDraft(Number(draft.id))}
                       >
                         Load
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => deleteDraft(draft.title)}
+                        onClick={() => deleteDraft(Number(draft.id))}
                       >
                         <Trash className="h-4 w-4 text-red-500" />
                       </Button>

@@ -78,9 +78,8 @@ export const assignmentApi = {
   // Assignment draft operations
   saveDraft: (data: any) => apiClient.post("/assignments/drafts", data),
   getAllDrafts: () => apiClient.get("/assignments/drafts"),
-  getDraft: (title: string) => apiClient.get(`/assignments/drafts/${title}`),
-  deleteDraft: (title: string) =>
-    apiClient.delete(`/assignments/drafts/${title}`),
+  getDraft: (id: number) => apiClient.get(`/assignments/drafts/${id}`),
+  deleteDraft: (id: number) => apiClient.delete(`/assignments/drafts/${id}`),
 };
 
 // Class API endpoints
