@@ -998,7 +998,7 @@ const CreateAssignment = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Create Assignment</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-800">Create Assignment</h1>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -1083,7 +1083,7 @@ const CreateAssignment = () => {
           <div className="max-h-[400px] overflow-y-auto">
             {isLoadingDrafts ? (
               <div className="flex justify-center items-center py-8">
-                <div className="w-6 h-6 border-2 border-t-[#7359F8] border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+                <div className="w-6 h-6 border-2 border-t-[#58CC02] border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
                 <span className="ml-2">Loading drafts...</span>
               </div>
             ) : drafts.length === 0 ? (
@@ -1175,7 +1175,7 @@ const CreateAssignment = () => {
                       <Button
                         onClick={() => fileInputRef.current?.click()}
                         variant="outline"
-                        className="w-full max-w-xs"
+                        className="w-full max-w-xs bg-[#58CC02] hover:bg-[#51AA02] text-white"
                       >
                         <Upload className="mr-2 h-4 w-4" />
                         Upload Question Paper
@@ -1185,7 +1185,7 @@ const CreateAssignment = () => {
                 ) : (
                   <>
                     <div className="flex items-center justify-center mb-4">
-                      <FileText size={40} className="text-[#7359F8]" />
+                      <FileText size={40} className="text-[#58CC02]" />
                     </div>
                     <div>
                       <p className="font-medium">Question Paper Uploaded</p>
@@ -1227,20 +1227,11 @@ const CreateAssignment = () => {
                     <div className="flex flex-col items-center gap-3">
                       <Button
                         onClick={handleAnalyzeImages}
-                        className="w-full max-w-xs bg-[#7359F8] hover:bg-[#5e47c9]"
-                        disabled={isProcessing}
+                        disabled={!uploadedImages.length || isProcessing}
+                        className="w-full bg-[#58CC02] hover:bg-[#51AA02] text-white flex items-center justify-center gap-2"
                       >
-                        {isProcessing ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-t-white border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin mr-2"></div>
-                            Analyzing with AI...
-                          </>
-                        ) : (
-                          <>
-                            <Wand2 className="mr-2 h-4 w-4" />
-                            Analyze with AI
-                          </>
-                        )}
+                        <Wand2 className="h-4 w-4" />
+                        Analyze with AI
                       </Button>
                       <Button
                         variant="outline"
@@ -1314,7 +1305,9 @@ const CreateAssignment = () => {
                               }
                             }}
                           />
-                          <span className="text-sm text-gray-600">marks</span>
+                          <span className="text-sm text-[#58CC02] mr-2">
+                            marks
+                          </span>
                         </div>
                       </div>
                       <div className="prose prose-sm max-w-none">
@@ -1332,7 +1325,7 @@ const CreateAssignment = () => {
               <CardFooter>
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="w-full bg-[#58CC02] hover:bg-[#51AA02] text-white"
                   onClick={initiateDraftSave}
                 >
                   <Save className="mr-2 h-4 w-4" />
@@ -1370,7 +1363,7 @@ const CreateAssignment = () => {
                         </span>
                         <span className="font-medium truncate max-w-[200px]">
                           {question.maxMarks > 0 && (
-                            <span className="text-sm text-[#7359F8] mr-2">
+                            <span className="text-sm text-[#58CC02] mr-2">
                               [{question.maxMarks} marks]
                             </span>
                           )}
@@ -1450,14 +1443,14 @@ const CreateAssignment = () => {
                 <Button
                   onClick={initiateDraftSave}
                   variant="outline"
-                  className="w-full"
+                  className="w-full bg-[#58CC02] hover:bg-[#51AA02] text-white"
                 >
                   <Save className="mr-2 h-4 w-4" />
                   Save Draft
                 </Button>
                 <Button
                   onClick={initiateAssignmentSave}
-                  className="w-full bg-[#7359F8] hover:bg-[#5e47c9]"
+                  className="w-full bg-[#58CC02] hover:bg-[#51AA02] text-white"
                 >
                   Create Assignment
                 </Button>

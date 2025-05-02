@@ -7,6 +7,9 @@ import {
   Download,
   PlusCircle,
   MoreVertical,
+  UserCircle,
+  FileText,
+  Edit,
 } from "lucide-react";
 import { Student } from "@/types/class";
 import { useToast } from "@/hooks/use-toast";
@@ -97,69 +100,66 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
         </div>
 
         <div className="flex gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size={isMobile ? "sm" : "icon"}
-                  onClick={handleImportStudents}
-                  className="hover:text-[#58CC02] hover:border-[#58CC02]"
-                >
-                  <Upload size={16} />
-                  {isMobile && <span className="ml-2">Import</span>}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Import Students</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleImportStudents}
+            className="hover:text-[#58CC02] hover:border-[#58CC02] h-10 w-10 md:flex items-center justify-center hidden"
+          >
+            <Upload size={16} />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleImportStudents}
+            className="hover:text-[#58CC02] hover:border-[#58CC02] md:hidden flex items-center"
+          >
+            <Upload size={16} className="mr-2" />
+            Import
+          </Button>
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size={isMobile ? "sm" : "icon"}
-                  onClick={handleExportStudents}
-                  className="hover:text-[#58CC02] hover:border-[#58CC02]"
-                >
-                  <Download size={16} />
-                  {isMobile && <span className="ml-2">Export</span>}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Export Students</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleExportStudents}
+            className="hover:text-[#58CC02] hover:border-[#58CC02] h-10 w-10 md:flex items-center justify-center hidden"
+          >
+            <Download size={16} />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportStudents}
+            className="hover:text-[#58CC02] hover:border-[#58CC02] md:hidden flex items-center"
+          >
+            <Download size={16} className="mr-2" />
+            Export
+          </Button>
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size={isMobile ? "sm" : "icon"}
-                  onClick={handleAddStudent}
-                  className="hover:text-[#58CC02] hover:border-[#58CC02]"
-                >
-                  <PlusCircle size={16} />
-                  {isMobile && <span className="ml-2">Add</span>}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Add Student</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleAddStudent}
+            className="hover:text-[#58CC02] hover:border-[#58CC02] h-10 w-10 md:flex items-center justify-center hidden"
+          >
+            <PlusCircle size={16} />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAddStudent}
+            className="hover:text-[#58CC02] hover:border-[#58CC02] md:hidden flex items-center"
+          >
+            <PlusCircle size={16} className="mr-2" />
+            Add
+          </Button>
         </div>
       </div>
 
       <div className="border rounded-md bg-white shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] overflow-hidden">
         <div className="overflow-x-auto">
           <div className="sticky top-0 z-10 bg-muted/50 border-b">
-            <div className={isMobile ? "min-w-[600px]" : "min-w-[600px]"}>
+            <div className="min-w-[600px]">
               <div className="grid grid-cols-4 h-10">
                 <div className="px-4 flex items-center font-medium text-muted-foreground">
                   Name
@@ -170,7 +170,7 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
                 <div className="px-4 flex items-center font-medium text-muted-foreground">
                   Mobile
                 </div>
-                <div className="px-4 flex items-center font-medium text-muted-foreground text-center">
+                <div className="px-4 flex items-center justify-center font-medium text-muted-foreground">
                   Actions
                 </div>
               </div>
@@ -178,46 +178,69 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
           </div>
 
           <ScrollArea className="h-[calc(100vh-325px)] min-h-[400px]">
-            <div className={isMobile ? "min-w-[600px]" : "min-w-[600px]"}>
-              {filteredStudents.map((student) => (
+            <div className="min-w-[600px]">
+              {filteredStudents.map((student, index) => (
                 <div
                   key={student.id}
-                  className="grid grid-cols-4 border-b hover:bg-[#EEF9EE]/50 transition-colors"
+                  className={`grid grid-cols-4 border-b hover:bg-[#EEF9EE]/50 transition-colors ${index % 2 === 1 ? "bg-gray-50/50" : ""}`}
                 >
-                  <div className="p-4 truncate">{student.name}</div>
+                  <div className="p-4 truncate font-medium">{student.name}</div>
                   <div className="p-4">{student.roll || "-"}</div>
-                  <div className="p-4">{student.mobile}</div>
-                  <div className="p-4 flex justify-center">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="hover:text-[#58CC02] hover:bg-[#EEF9EE]/50">
-                          <MoreVertical size={16} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="w-56 bg-white"
-                      >
-                        <DropdownMenuItem
-                          onClick={() => handleViewStudent(student.id)}
-                          className="hover:text-[#58CC02] hover:bg-[#EEF9EE]"
-                        >
-                          <span>View Profile</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleViewAssignments(student.id)}
-                          className="hover:text-[#58CC02] hover:bg-[#EEF9EE]"
-                        >
-                          <span>View Assignments</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleEditDetails(student.id)}
-                          className="hover:text-[#58CC02] hover:bg-[#EEF9EE]"
-                        >
-                          <span>Edit Details</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                  <div className="p-4 font-mono">{student.mobile}</div>
+                  <div className="p-4 flex justify-center gap-1">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:text-[#58CC02] hover:bg-[#EEF9EE]"
+                            onClick={() => handleViewStudent(student.id)}
+                          >
+                            <UserCircle size={16} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>View Profile</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:text-[#58CC02] hover:bg-[#EEF9EE]"
+                            onClick={() => handleViewAssignments(student.id)}
+                          >
+                            <FileText size={16} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>View Assignments</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 hover:text-[#58CC02] hover:bg-[#EEF9EE]"
+                            onClick={() => handleEditDetails(student.id)}
+                          >
+                            <Edit size={16} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Edit Details</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
               ))}

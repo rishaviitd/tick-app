@@ -594,7 +594,7 @@ const CreateClass = () => {
                 isIntentionalSubmit.current = true;
                 handleSubmit(new Event("submit") as unknown as React.FormEvent);
               }}
-              className="w-full bg-[#7359F8] hover:bg-[#5e47c9]"
+              className="w-full bg-[#58CC02] hover:bg-[#51AA02]"
               disabled={
                 isLoading ||
                 students.length === 0 ||
