@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -26,11 +25,11 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: 'hsl(var(--primary))',
+					DEFAULT: '#58CC02',
 					foreground: 'hsl(var(--primary-foreground))'
 				},
 				secondary: {
-					DEFAULT: 'hsl(var(--secondary))',
+					DEFAULT: '#EEF9EE',
 					foreground: 'hsl(var(--secondary-foreground))'
 				},
 				destructive: {
@@ -42,7 +41,7 @@ export default {
 					foreground: 'hsl(var(--muted-foreground))'
 				},
 				accent: {
-					DEFAULT: 'hsl(var(--accent))',
+					DEFAULT: '#51AA02',
 					foreground: 'hsl(var(--accent-foreground))'
 				},
 				popover: {
@@ -56,17 +55,17 @@ export default {
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
-					primary: 'hsl(var(--sidebar-primary))',
+					primary: '#58CC02',
 					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-					accent: 'hsl(var(--sidebar-accent))',
+					accent: '#EEF9EE',
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				// Education platform specific colors
 				edu: {
-					primary: '#4F46E5', // Indigo shade for primary actions
-					secondary: '#F0F4FF', // Light blue background
+					primary: '#58CC02', // Primary green for tick AI
+					secondary: '#EEF9EE', // Light green background
 					success: '#22C55E', // Green for success states
 					warning: '#F59E0B', // Amber for warnings
 					error: '#EF4444', // Red for errors

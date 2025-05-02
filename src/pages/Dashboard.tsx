@@ -3,9 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/context/AuthContext";
-import { PlusCircle, BookOpen, Users, Calendar, LayoutGrid } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import apiClient, { classApi } from "@/lib/api"; // Import the axios-based API client
 
 // Types for our data
@@ -17,7 +16,7 @@ interface Class {
   assignments: string[];
 }
 
-// Debug component to test API calls - hidden in production
+// Debug component to test API calls
 const ApiDebugger = () => {
   const { token, user } = useAuth();
   const [apiResponse, setApiResponse] = useState<any>(null);
@@ -143,141 +142,44 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Dashboard</h1>
-        <p className="text-gray-600">Manage your classes and assignments</p>
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+        <p className="text-gray-600">Manage your classes</p>
       </div>
 
-      <section className="mb-10">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Total Classes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{classes.length}</div>
-            </CardContent>
-            <CardFooter>
-              <LayoutGrid className="text-primary mr-2 h-4 w-4" />
-              <span className="text-xs text-gray-500">Active classes</span>
-            </CardFooter>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Total Students</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {classes.reduce((total, c) => total + c.students.length, 0)}
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Users className="text-blue-500 mr-2 h-4 w-4" />
-              <span className="text-xs text-gray-500">Enrolled students</span>
-            </CardFooter>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Assignments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {classes.reduce((total, c) => total + c.assignments.length, 0)}
-              </div>
-            </CardContent>
-            <CardFooter>
-              <BookOpen className="text-amber-500 mr-2 h-4 w-4" />
-              <span className="text-xs text-gray-500">Total assignments</span>
-            </CardFooter>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Last Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-md font-bold">Today</div>
-            </CardContent>
-            <CardFooter>
-              <Calendar className="text-purple-500 mr-2 h-4 w-4" />
-              <span className="text-xs text-gray-500">Recent updates</span>
-            </CardFooter>
-          </Card>
-        </div>
-
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-800">Your Classes</h2>
-          <Button
-            onClick={() => navigate("/create-class")}
-            className="bg-primary hover:bg-accent text-white"
-          >
-            <PlusCircle className="mr-2 h-4 w-4" /> New Class
-          </Button>
-        </div>
+      <section>
+        <Button
+          onClick={() => navigate("/create-class")}
+          className="w-full bg-[#58CC02] hover:bg-[#51AA02] mb-8"
+        >
+          <PlusCircle className="mr-2 h-4 w-4" /> Class
+        </Button>
 
         {isLoading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading your classes...</p>
-          </div>
+          <div className="text-center py-8">Loading your classes...</div>
         ) : error ? (
           <div className="text-center py-8 text-red-500">{error}</div>
         ) : classes.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 gap-4">
             {classes.map((classItem) => (
-              <Card 
+              <div
                 key={classItem._id}
-                className="card-with-hover cursor-pointer overflow-hidden bg-white"
+                className="bg-white p-4 rounded-lg shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] cursor-pointer hover:shadow-lg transition-shadow border border-gray-100"
                 onClick={() => handleClassClick(classItem._id)}
               >
-                <div className="h-2 bg-primary"></div>
-                <CardHeader>
-                  <CardTitle className="text-xl">{classItem.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Users className="h-4 w-4" />
-                    <span>
-                      {classItem.students.length} student
-                      {classItem.students.length !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 mt-2 text-gray-600">
-                    <BookOpen className="h-4 w-4" />
-                    <span>
-                      {classItem.assignments.length} assignment
-                      {classItem.assignments.length !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                </CardContent>
-                <CardFooter className="bg-secondary/30 text-xs text-gray-500">
-                  Click to manage class
-                </CardFooter>
-              </Card>
+                <h3 className="font-medium text-lg font-inter">{classItem.title}</h3>
+                <p className="text-gray-600">
+                  {classItem.students.length} student
+                  {classItem.students.length !== 1 ? "s" : ""}
+                </p>
+              </div>
             ))}
           </div>
         ) : (
-          <Card className="p-8 text-center border-dashed border-2">
-            <div className="flex flex-col items-center justify-center">
-              <div className="rounded-full bg-primary/10 p-3 mb-4">
-                <BookOpen className="h-8 w-8 text-primary" />
-              </div>
-              <h3 className="text-xl font-medium mb-2">No Classes Yet</h3>
-              <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                You haven't created any classes yet. Create your first class to get started with tick AI.
-              </p>
-              <Button
-                onClick={() => navigate("/create-class")}
-                className="bg-primary hover:bg-accent text-white"
-              >
-                <PlusCircle className="mr-2 h-4 w-4" /> Create First Class
-              </Button>
-            </div>
-          </Card>
+          <div className="text-center py-8 text-gray-600">
+            You have no classes yet. Create your first class!
+          </div>
         )}
       </section>
 
