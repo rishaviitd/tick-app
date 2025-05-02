@@ -69,7 +69,7 @@ export const AssignmentsTab = ({
     <div className="space-y-6">
       <Button
         onClick={handleCreateAssignment}
-        className="w-full bg-[#7359F8] hover:bg-[#5e47c9] text-white flex items-center justify-center gap-2"
+        className="w-full bg-[#58CC02] hover:bg-[#51AA02] text-white flex items-center justify-center gap-2"
       >
         <PlusCircle size={18} />
         Create Assignment
@@ -197,7 +197,7 @@ export const AssignmentsTab = ({
           <p className="text-muted-foreground mb-6">
             Create your first assignment to get started
           </p>
-          <Button onClick={handleCreateAssignment}>
+          <Button onClick={handleCreateAssignment} className="bg-[#58CC02] hover:bg-[#51AA02]">
             <PlusCircle className="mr-2 h-4 w-4" />
             Create Assignment
           </Button>

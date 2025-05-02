@@ -104,6 +104,7 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
                   variant="outline"
                   size={isMobile ? "sm" : "icon"}
                   onClick={handleImportStudents}
+                  className="hover:text-[#58CC02] hover:border-[#58CC02]"
                 >
                   <Upload size={16} />
                   {isMobile && <span className="ml-2">Import</span>}
@@ -122,6 +123,7 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
                   variant="outline"
                   size={isMobile ? "sm" : "icon"}
                   onClick={handleExportStudents}
+                  className="hover:text-[#58CC02] hover:border-[#58CC02]"
                 >
                   <Download size={16} />
                   {isMobile && <span className="ml-2">Export</span>}
@@ -140,6 +142,7 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
                   variant="outline"
                   size={isMobile ? "sm" : "icon"}
                   onClick={handleAddStudent}
+                  className="hover:text-[#58CC02] hover:border-[#58CC02]"
                 >
                   <PlusCircle size={16} />
                   {isMobile && <span className="ml-2">Add</span>}
@@ -153,7 +156,7 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
         </div>
       </div>
 
-      <div className="border rounded-md bg-white overflow-hidden">
+      <div className="border rounded-md bg-white shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] overflow-hidden">
         <div className="overflow-x-auto">
           <div className="sticky top-0 z-10 bg-muted/50 border-b">
             <div className={isMobile ? "min-w-[600px]" : "min-w-[600px]"}>
@@ -179,7 +182,7 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
               {filteredStudents.map((student) => (
                 <div
                   key={student.id}
-                  className="grid grid-cols-4 border-b hover:bg-muted/30 transition-colors"
+                  className="grid grid-cols-4 border-b hover:bg-[#EEF9EE]/50 transition-colors"
                 >
                   <div className="p-4 truncate">{student.name}</div>
                   <div className="p-4">{student.roll || "-"}</div>
@@ -187,7 +190,7 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
                   <div className="p-4 flex justify-center">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" className="hover:text-[#58CC02] hover:bg-[#EEF9EE]/50">
                           <MoreVertical size={16} />
                         </Button>
                       </DropdownMenuTrigger>
@@ -197,16 +200,19 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
                       >
                         <DropdownMenuItem
                           onClick={() => handleViewStudent(student.id)}
+                          className="hover:text-[#58CC02] hover:bg-[#EEF9EE]"
                         >
                           <span>View Profile</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleViewAssignments(student.id)}
+                          className="hover:text-[#58CC02] hover:bg-[#EEF9EE]"
                         >
                           <span>View Assignments</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleEditDetails(student.id)}
+                          className="hover:text-[#58CC02] hover:bg-[#EEF9EE]"
                         >
                           <span>Edit Details</span>
                         </DropdownMenuItem>

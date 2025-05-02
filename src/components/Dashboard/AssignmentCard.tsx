@@ -39,12 +39,12 @@ export const AssignmentCard = ({
     },
     active: {
       label: "Active",
-      color: "bg-blue-100 text-blue-800",
+      color: "bg-[#EEF9EE] text-[#58CC02]",
       icon: AlertCircle,
     },
     completed: {
       label: "Completed",
-      color: "bg-green-100 text-green-800",
+      color: "bg-[#EEF9EE] text-[#51AA02]",
       icon: CheckCircle,
     },
   };
@@ -53,7 +53,7 @@ export const AssignmentCard = ({
 
   return (
     <Card
-      className="overflow-hidden hover:shadow-md transition-all duration-300 border border-gray-200 active:bg-gray-50 w-full"
+      className="overflow-hidden hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] transition-all duration-300 border border-gray-100 active:bg-gray-50 w-full"
       onClick={() => navigate(`/assignment/${id}`)}
     >
       <CardContent className="p-4">
@@ -85,7 +85,7 @@ export const AssignmentCard = ({
           )}
 
           {status === "draft" && (
-            <div className="flex items-center gap-1.5 text-sm text-amber-600">
+            <div className="flex items-center gap-1.5 text-sm text-[#58CC02]">
               <StatusIcon size={14} />
               <span>Setup required</span>
             </div>
