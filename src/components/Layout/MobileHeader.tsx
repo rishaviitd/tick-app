@@ -17,10 +17,12 @@ export const MobileHeader = () => {
     <header className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center">
-          <div className="w-10 h-10 rounded-full bg-[#7359F8] flex items-center justify-center mr-2">
-            <span className="text-white font-bold">G</span>
-          </div>
-          <span className="text-xl font-bold text-[#7359F8]">GradeAI</span>
+          <img 
+            src="/tick-ai-logo.svg" 
+            alt="tick AI" 
+            className="w-10 h-10 mr-2"
+          />
+          <span className="text-xl font-bold text-tickai-primary">tick AI</span>
         </div>
 
         <DropdownMenu>

@@ -107,9 +107,13 @@ export const AppSidebar = () => {
 
             <div className="flex flex-col h-full p-4">
               <div className="flex items-center gap-3 px-4 py-3 mb-6">
-                <GraduationCap size={32} className="text-primary" />
-                <span className="text-xl font-bold text-sidebar-foreground">
-                  GradeAI
+                <img 
+                  src="/tick-ai-logo.svg" 
+                  alt="tick AI" 
+                  className="w-8 h-8" 
+                />
+                <span className="text-xl font-bold text-tickai-primary">
+                  tick AI
                 </span>
               </div>
 
@@ -184,10 +188,14 @@ export const AppSidebar = () => {
       )}
     >
       <div className="flex items-center gap-3 px-4 py-5">
-        <GraduationCap size={28} className="text-primary min-w-[28px]" />
+        <img 
+          src="/tick-ai-logo.svg" 
+          alt="tick AI" 
+          className="min-w-[28px] w-7 h-7" 
+        />
         {!isCollapsed && (
-          <span className="text-xl font-bold text-sidebar-foreground">
-            GradeAI
+          <span className="text-xl font-bold text-tickai-primary">
+            tick AI
           </span>
         )}
       </div>

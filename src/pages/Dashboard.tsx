@@ -44,7 +44,7 @@ const ApiDebugger = () => {
   };
 
   return (
-    <div className="mt-8 p-4 border border-red-300 rounded-md bg-red-50">
+    <div className="mt-8 p-4 border border-red-300 rounded-xl bg-red-50">
       <h3 className="font-bold text-red-800 mb-2">API Debugger</h3>
       <div className="mb-2">
         <Button
@@ -60,7 +60,7 @@ const ApiDebugger = () => {
       {isLoading && <p className="text-gray-600">Testing API...</p>}
 
       {error && (
-        <div className="mt-2 p-2 bg-red-100 border border-red-600 rounded">
+        <div className="mt-2 p-2 bg-red-100 border border-red-600 rounded-xl">
           <p className="text-red-800">{error}</p>
         </div>
       )}
@@ -144,14 +144,14 @@ const Dashboard = () => {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-800 font-heading">Dashboard</h1>
         <p className="text-gray-600">Manage your classes</p>
       </div>
 
       <section>
         <Button
           onClick={() => navigate("/create-class")}
-          className="w-full bg-indigo-600 mb-8"
+          className="w-full mb-8"
         >
           <PlusCircle className="mr-2 h-4 w-4" /> Class
         </Button>
@@ -165,11 +165,11 @@ const Dashboard = () => {
             {classes.map((classItem) => (
               <div
                 key={classItem._id}
-                className="bg-white p-4 rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+                className="bg-white p-4 rounded-xl shadow-tickai cursor-pointer hover:shadow-lg transition-shadow"
                 onClick={() => handleClassClick(classItem._id)}
               >
-                <h3 className="font-medium text-lg">{classItem.title}</h3>
-                <p>
+                <h3 className="font-medium text-lg text-tickai-text">{classItem.title}</h3>
+                <p className="text-tickai-text-muted">
                   {classItem.students.length} student
                   {classItem.students.length !== 1 ? "s" : ""}
                 </p>
@@ -177,7 +177,7 @@ const Dashboard = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-600">
+          <div className="text-center py-8 text-tickai-text-muted">
             You have no classes yet. Create your first class!
           </div>
         )}
