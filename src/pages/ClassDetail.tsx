@@ -28,6 +28,42 @@ interface Assignment {
   maxMarks?: number;
 }
 
+const fetchDraftAssignments = async (classId: string, token: string): Promise<Assignment[]> => {
+  try {
+    // Fetch drafts from the API
+    const draftsEndpoint = `${axios.defaults.baseURL}/api/v1/assignments/drafts`;
+    console.log("Fetching drafts from:", draftsEndpoint);
+    
+    const draftsResponse = await axios.get(draftsEndpoint, {
+      headers: {
+        "x-auth-token": token,
+        Authorization: `Bearer ${token}`,
+      }
+    });
+    
+    // Transform draft data to match our interface
+    const drafts: Assignment[] = (draftsResponse.data.drafts || []).map((draft: any) => ({
+      id: draft.title, // Using title as ID for drafts since they don't have proper IDs yet
+      title: draft.title,
+      subject: "Draft", // Mark as draft
+      date: new Date(draft.lastUpdated || Date.now()).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      status: "draft",
+      completion: 0,
+      maxMarks: draft.maxMarks || 0,
+    }));
+    
+    return drafts;
+  } catch (error) {
+    console.error("Error fetching drafts:", error);
+    // Return empty array if there's an error
+    return [];
+  }
+};
+
 const ClassDetail = () => {
   const { classId } = useParams<{ classId: string }>();
   const [activeTab, setActiveTab] = useState("assignments");
@@ -96,6 +132,14 @@ const ClassDetail = () => {
             completion: assignment.active ? 0 : 100,
             maxMarks: 0, // We'll need to calculate this from questions later
           })) || [];
+
+        // Get drafts if the user is authenticated
+        if (token) {
+          const drafts = await fetchDraftAssignments(classId, token);
+          
+          // Add the drafts to the assignments array
+          assignments.push(...drafts);
+        }
 
         setClassData({
           id: classId,

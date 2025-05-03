@@ -51,10 +51,18 @@ export const AssignmentCard = ({
 
   const StatusIcon = statusConfig[status].icon;
 
+  const handleClick = () => {
+    if (status === "draft") {
+      navigate(`/create-assignment?draft=${encodeURIComponent(title)}`);
+    } else {
+      navigate(`/assignment/${id}`);
+    }
+  };
+
   return (
     <Card
       className="overflow-hidden hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] transition-all duration-300 border border-gray-100 active:bg-gray-50 w-full"
-      onClick={() => navigate(`/assignment/${id}`)}
+      onClick={handleClick}
     >
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-2">

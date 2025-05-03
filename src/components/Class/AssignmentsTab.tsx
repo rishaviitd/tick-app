@@ -105,7 +105,9 @@ export const AssignmentsTab = ({
 
       {draftAssignments.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold tracking-tight">Drafts</h2>
+          <h2 className="text-lg font-semibold tracking-tight">
+            Drafts [{draftAssignments.length}]
+          </h2>
           <div className="overflow-x-auto pb-2 -mx-4 px-4">
             <div
               className="flex space-x-4 min-w-full"
@@ -129,10 +131,12 @@ export const AssignmentsTab = ({
         </div>
       )}
 
-      {completedAssignments.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Completed</h2>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold tracking-tight">
+            Completed Assignments [{filteredCompletedAssignments.length}]
+          </h2>
+          {completedAssignments.length > 0 && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -161,14 +165,16 @@ export const AssignmentsTab = ({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          </div>
+          )}
+        </div>
 
-          <div className="overflow-x-auto pb-2 -mx-4 px-4">
-            <div
-              className="flex space-x-4 min-w-full"
-              style={{ scrollbarWidth: "none" }}
-            >
-              {filteredCompletedAssignments.map((assignment) => (
+        <div className="overflow-x-auto pb-2 -mx-4 px-4">
+          <div
+            className="flex space-x-4 min-w-full"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {filteredCompletedAssignments.length > 0 ? (
+              filteredCompletedAssignments.map((assignment) => (
                 <div key={assignment.id} className="w-[270px] flex-shrink-0">
                   <AssignmentCard
                     id={assignment.id}
@@ -180,16 +186,17 @@ export const AssignmentsTab = ({
                     maxMarks={assignment.maxMarks}
                   />
                 </div>
-              ))}
-              {filteredCompletedAssignments.length === 0 && (
-                <Card className="w-full p-6 text-center text-muted-foreground">
-                  No assignments found for the selected month
-                </Card>
-              )}
-            </div>
+              ))
+            ) : (
+              <Card className="w-full p-6 text-center text-muted-foreground">
+                {selectedMonth !== "all" 
+                  ? "No assignments found for the selected month" 
+                  : "No completed assignments yet"}
+              </Card>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       {assignments.length === 0 && (
         <div className="text-center py-12">
