@@ -754,27 +754,7 @@ const AssignmentDetailPage = () => {
             {assignment.title}
           </h1>
 
-          <div className="flex items-center flex-wrap gap-2 mt-1">
-            <Badge
-              variant="outline"
-              className={
-                assignment.status === "draft"
-                  ? "bg-gray-100 text-gray-800"
-                  : assignment.status === "active"
-                  ? "bg-blue-100 text-blue-800"
-                  : "bg-green-100 text-green-800"
-              }
-            >
-              {assignment.status === "draft"
-                ? "Draft"
-                : assignment.status === "active"
-                ? "Active"
-                : "Completed"}
-            </Badge>
-            <p className="text-sm text-muted-foreground">
-              {assignment.maxMarks} marks
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground mt-1">{assignment.maxMarks} marks</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -813,137 +793,13 @@ const AssignmentDetailPage = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="results">Results</TabsTrigger>
           <TabsTrigger value="grade">Grade</TabsTrigger>
+          <TabsTrigger value="results">Results</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="results" className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3 sticky top-0 z-10 bg-card">
-              <div className="flex items-center justify-between">
-                <CardTitle>Student Results</CardTitle>
-                <div className="flex gap-2">
-                  <Checkbox
-                    id="select-all"
-                    checked={
-                      selectedStudents.length === assignment.students.length &&
-                      assignment.students.length > 0
-                    }
-                    onCheckedChange={selectAllStudents}
-                  />
-                  <label htmlFor="select-all" className="text-sm">
-                    Select All
-                  </label>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[400px] pr-4 overflow-x-auto">
-                <div className="min-w-[600px]">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-card z-10">
-                      <TableRow>
-                        <TableHead className="w-10">
-                          <span className="sr-only">Select</span>
-                        </TableHead>
-                        <TableHead>Student</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Score</TableHead>
-                        <TableHead className="text-right">Feedback</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {assignment.students.map((student) => (
-                        <TableRow key={student.studentId}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedStudents.includes(
-                                student.studentId
-                              )}
-                              onCheckedChange={() =>
-                                toggleStudentSelection(student.studentId)
-                              }
-                            />
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {student.studentName}
-                          </TableCell>
-                          <TableCell>
-                            {student.status === "graded" && (
-                              <div className="flex items-center">
-                                <CheckCircle
-                                  size={18}
-                                  className="text-green-500 mr-1"
-                                />
-                                <span className="text-xs">Graded</span>
-                              </div>
-                            )}
-                            {student.status === "processing" && (
-                              <div className="flex items-center">
-                                <Loader2
-                                  size={18}
-                                  className="text-blue-500 animate-spin mr-1"
-                                />
-                                <span className="text-xs">Processing</span>
-                              </div>
-                            )}
-                            {student.status === "failed" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleRetryGrading(student.studentId)
-                                }
-                              >
-                                <RotateCcw
-                                  size={16}
-                                  className="text-red-500 mr-1"
-                                />
-                                <span className="sr-only sm:not-sr-only sm:text-xs">
-                                  Retry
-                                </span>
-                              </Button>
-                            )}
-                            {student.status === "pending" && (
-                              <span className="text-gray-500 text-sm">
-                                Pending
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {student.score !== undefined
-                              ? `${student.score}/${assignment.maxMarks}`
-                              : "-"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {student.status === "graded" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleViewFeedback(student.studentId)
-                                }
-                              >
-                                <Eye size={16} className="mr-1" />
-                                <span className="sr-only sm:not-sr-only sm:text-xs">
-                                  View
-                                </span>
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="grade" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
               <Card>
                 <CardHeader>
                   <CardTitle>Upload Answer Sheets</CardTitle>
@@ -1020,7 +876,7 @@ const AssignmentDetailPage = () => {
               </Card>
             </div>
 
-            <div>
+            <div className="w-full">
               <Card>
                 <CardHeader>
                   <CardTitle>Assign Students</CardTitle>
@@ -1034,65 +890,195 @@ const AssignmentDetailPage = () => {
                     className="mb-4"
                   />
 
-                  <ScrollArea className="h-[300px] overflow-x-auto">
-                    <div className="min-w-[250px] space-y-3">
-                      {loadingStudents ? (
-                        <div className="flex flex-col items-center justify-center py-8">
-                          <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-                          <p className="text-sm text-muted-foreground">
-                            Loading students...
-                          </p>
-                        </div>
-                      ) : filteredStudents.length > 0 ? (
-                        filteredStudents.map((student) => (
-                          <div
-                            key={student.id}
-                            className="flex items-center justify-between p-3 border rounded-md"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <label
-                                htmlFor={`student-${student.id}`}
-                                className="font-medium cursor-pointer"
-                              >
-                                {student.name}
-                              </label>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  handleAssignStudent(student.id, student.name)
-                                }
-                                disabled={assigningStudent === student.id}
-                              >
-                                {assigningStudent === student.id ? (
-                                  <>
-                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                    Assigning...
-                                  </>
-                                ) : (
-                                  "Assign"
-                                )}
-                              </Button>
-                            </div>
+                  <div className="overflow-x-auto">
+                    <ScrollArea className="h-[300px]">
+                      <div className="min-w-[250px] space-y-3">
+                        {loadingStudents ? (
+                          <div className="flex flex-col items-center justify-center py-8">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                            <p className="text-sm text-muted-foreground">
+                              Loading students...
+                            </p>
                           </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-8">
-                          <p className="text-muted-foreground">
-                            {availableStudents.length > 0
-                              ? "No matching students found"
-                              : "No available students to assign"}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
+                        ) : filteredStudents.length > 0 ? (
+                          filteredStudents.map((student) => (
+                            <div
+                              key={student.id}
+                              className="flex items-center justify-between p-3 border rounded-md"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <label
+                                  htmlFor={`student-${student.id}`}
+                                  className="font-medium cursor-pointer"
+                                >
+                                  {student.name}
+                                </label>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    handleAssignStudent(student.id, student.name)
+                                  }
+                                  disabled={assigningStudent === student.id}
+                                >
+                                  {assigningStudent === student.id ? (
+                                    <>
+                                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                      Assigning...
+                                    </>
+                                  ) : (
+                                    "Assign"
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-8">
+                            <p className="text-muted-foreground">
+                              {availableStudents.length > 0
+                                ? "No matching students found"
+                                : "No available students to assign"}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
                 </CardContent>
               </Card>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="results" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3 sticky top-0 z-10 bg-card">
+              <div className="flex items-center justify-between">
+                <CardTitle>Student Results</CardTitle>
+                <div className="flex gap-2">
+                  <Checkbox
+                    id="select-all"
+                    checked={
+                      selectedStudents.length === assignment.students.length &&
+                      assignment.students.length > 0
+                    }
+                    onCheckedChange={selectAllStudents}
+                  />
+                  <label htmlFor="select-all" className="text-sm">
+                    Select All
+                  </label>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <div className="overflow-x-auto">
+                  <ScrollArea className="h-[400px] w-full">
+                    <div className="min-w-[600px]">
+                      <Table>
+                        <TableHeader className="sticky top-0 bg-card z-10">
+                          <TableRow>
+                            <TableHead className="w-10">
+                              <span className="sr-only">Select</span>
+                            </TableHead>
+                            <TableHead>Student</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Score</TableHead>
+                            <TableHead className="text-right">Feedback</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {assignment.students.map((student) => (
+                            <TableRow key={student.studentId}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedStudents.includes(
+                                    student.studentId
+                                  )}
+                                  onCheckedChange={() =>
+                                    toggleStudentSelection(student.studentId)
+                                  }
+                                />
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                {student.studentName}
+                              </TableCell>
+                              <TableCell>
+                                {student.status === "graded" && (
+                                  <div className="flex items-center">
+                                    <CheckCircle
+                                      size={18}
+                                      className="text-green-500 mr-1"
+                                    />
+                                    <span className="text-xs">Graded</span>
+                                  </div>
+                                )}
+                                {student.status === "processing" && (
+                                  <div className="flex items-center">
+                                    <Loader2
+                                      size={18}
+                                      className="text-blue-500 animate-spin mr-1"
+                                    />
+                                    <span className="text-xs">Processing</span>
+                                  </div>
+                                )}
+                                {student.status === "failed" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleRetryGrading(student.studentId)
+                                    }
+                                  >
+                                    <RotateCcw
+                                      size={16}
+                                      className="text-red-500 mr-1"
+                                    />
+                                    <span className="sr-only sm:not-sr-only sm:text-xs">
+                                      Retry
+                                    </span>
+                                  </Button>
+                                )}
+                                {student.status === "pending" && (
+                                  <span className="text-gray-500 text-sm">
+                                    Pending
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {student.score !== undefined
+                                  ? `${student.score}/${assignment.maxMarks}`
+                                  : "-"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {student.status === "graded" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleViewFeedback(student.studentId)
+                                    }
+                                  >
+                                    <Eye size={16} className="mr-1" />
+                                    <span className="sr-only sm:not-sr-only sm:text-xs">
+                                      View
+                                    </span>
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </ScrollArea>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
