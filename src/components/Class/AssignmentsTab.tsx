@@ -75,17 +75,17 @@ export const AssignmentsTab = ({
         Create Assignment
       </Button>
 
-      {activeAssignments.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold tracking-tight">
-            Active Assignments [{activeAssignments.length}]
-          </h2>
-          <div className="overflow-x-auto pb-2 -mx-4 px-4">
-            <div
-              className="flex space-x-4 min-w-full"
-              style={{ scrollbarWidth: "none" }}
-            >
-              {activeAssignments.map((assignment) => (
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight">
+          Active Assignments [{activeAssignments.length}]
+        </h2>
+        <div className="overflow-x-auto pb-2 -mx-4 px-4">
+          <div
+            className="flex space-x-4 min-w-full"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {activeAssignments.length > 0 ? (
+              activeAssignments.map((assignment) => (
                 <div key={assignment.id} className="w-[270px] flex-shrink-0">
                   <AssignmentCard
                     id={assignment.id}
@@ -97,23 +97,27 @@ export const AssignmentsTab = ({
                     maxMarks={assignment.maxMarks}
                   />
                 </div>
-              ))}
-            </div>
+              ))
+            ) : (
+              <Card className="w-full p-6 text-center text-muted-foreground">
+                No active assignments yet
+              </Card>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
-      {draftAssignments.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold tracking-tight">
-            Drafts [{draftAssignments.length}]
-          </h2>
-          <div className="overflow-x-auto pb-2 -mx-4 px-4">
-            <div
-              className="flex space-x-4 min-w-full"
-              style={{ scrollbarWidth: "none" }}
-            >
-              {draftAssignments.map((assignment) => (
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight">
+          Drafts [{draftAssignments.length}]
+        </h2>
+        <div className="overflow-x-auto pb-2 -mx-4 px-4">
+          <div
+            className="flex space-x-4 min-w-full"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {draftAssignments.length > 0 ? (
+              draftAssignments.map((assignment) => (
                 <div key={assignment.id} className="w-[270px] flex-shrink-0">
                   <AssignmentCard
                     id={assignment.id}
@@ -125,11 +129,15 @@ export const AssignmentsTab = ({
                     maxMarks={assignment.maxMarks}
                   />
                 </div>
-              ))}
-            </div>
+              ))
+            ) : (
+              <Card className="w-full p-6 text-center text-muted-foreground">
+                No draft assignments yet
+              </Card>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">

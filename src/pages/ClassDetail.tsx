@@ -41,20 +41,26 @@ const fetchDraftAssignments = async (classId: string, token: string): Promise<As
       }
     });
     
-    // Transform draft data to match our interface
-    const drafts: Assignment[] = (draftsResponse.data.drafts || []).map((draft: any) => ({
-      id: draft.title, // Using title as ID for drafts since they don't have proper IDs yet
-      title: draft.title,
-      subject: "Draft", // Mark as draft
-      date: new Date(draft.lastUpdated || Date.now()).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }),
-      status: "draft",
-      completion: 0,
-      maxMarks: draft.maxMarks || 0,
-    }));
+    // Transform draft data to match our interface and filter by classId
+    // We'll check if the draft has a classId property and if it matches the current class
+    const drafts: Assignment[] = (draftsResponse.data.drafts || [])
+      .filter((draft: any) => {
+        // If the draft doesn't have a classId, or if it matches the current class
+        return !draft.classId || draft.classId === classId;
+      })
+      .map((draft: any) => ({
+        id: draft.title, // Using title as ID for drafts since they don't have proper IDs yet
+        title: draft.title,
+        subject: "Draft", // Mark as draft
+        date: new Date(draft.lastUpdated || Date.now()).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }),
+        status: "draft",
+        completion: 0,
+        maxMarks: draft.maxMarks || 0,
+      }));
     
     return drafts;
   } catch (error) {
