@@ -592,6 +592,12 @@ const AssignmentDetailPage = () => {
         questions: assignment.questions || [],
       };
 
+      console.log("DEBUG GRADING: Assignment details being sent to grading service:", {
+        title: assignment.title,
+        maxMarks: assignment.maxMarks,
+        questionsCount: assignment.questions?.length || 0
+      });
+
       // 2. Sequentially process each uploaded file
       for (const file of uploadedFiles) {
         try {

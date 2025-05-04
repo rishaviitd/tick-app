@@ -20,7 +20,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { aiGradingApi } from "@/lib/api";
+import { aiGradingApi, assignmentApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
@@ -30,6 +30,7 @@ interface QuestionFeedback {
   questionId: string;
   questionText: string;
   solution: string;
+  maxMarks?: number;
   feedback: {
     marks: number;
     comment: string;
@@ -53,6 +54,7 @@ interface DetailedFeedback {
   assignmentTitle: string;
   status: string;
   totalScore: number;
+  maxMarks?: number;
   submissionDate: string;
   aiFeedback: AIFeedback | null;
   questionResponses: QuestionFeedback[];
@@ -69,42 +71,40 @@ function FeedbackPage() {
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<DetailedFeedback | null>(null);
   const [maxScore, setMaxScore] = useState<number>(100);
+  const [assignmentMeta, setAssignmentMeta] = useState<{ maxMarks: number; questions: { maxMarks: number }[] } | null>(null);
 
   useEffect(() => {
-    const fetchFeedback = async () => {
-      if (!assignmentId || !studentId) {
-        setError("Missing assignment or student ID");
-        setLoading(false);
-        return;
-      }
-
+    const loadData = async () => {
       try {
-        console.log(
-          `Fetching feedback for assignment: ${assignmentId}, student: ${studentId}`
-        );
-        const response = await aiGradingApi.getDetailedFeedback(
-          assignmentId,
-          studentId
-        );
+        console.log("Loading feedback and assignment metadata for assignment " + assignmentId + ", student " + studentId);
+        const [feedbackResp, assignResp] = await Promise.all([
+          aiGradingApi.getDetailedFeedback(assignmentId!, studentId!),
+          assignmentApi.getDetails(assignmentId!)
+        ]);
+        console.log("Feedback API response:", feedbackResp);
+        console.log("Assignment API response:", assignResp);
 
-        console.log("Feedback API response:", response);
-
-        if (response.data?.success) {
-          setFeedback(response.data.data);
-          // Set maxScore from assignment context if available
-          setMaxScore(100); // Default value
+        if (feedbackResp.data.success) {
+          setFeedback(feedbackResp.data.data);
         } else {
-          setError(response.data?.message || "Failed to fetch feedback");
+          throw new Error(feedbackResp.data.message || "Failed to fetch feedback");
+        }
+
+        if (assignResp.data.success) {
+          const assignData = assignResp.data.data;
+          setAssignmentMeta({ maxMarks: assignData.maxMarks || 0, questions: assignData.questions });
+          setMaxScore(assignData.maxMarks || 0);
+        } else {
+          console.warn("Failed to fetch assignment metadata");
         }
       } catch (err: any) {
-        console.error("Error fetching feedback:", err);
-        setError(err.message || "An error occurred while fetching feedback");
+        console.error("Error loading feedback page data:", err);
+        setError(err.message || "An error occurred while loading data");
       } finally {
         setLoading(false);
       }
     };
-
-    fetchFeedback();
+    loadData();
   }, [assignmentId, studentId]);
 
   const getScoreColor = (score: number, max: number) => {
@@ -147,7 +147,7 @@ function FeedbackPage() {
   };
 
   // Loading state
-  if (loading) {
+  if (loading || !assignmentMeta) {
     return (
       <div className="container mx-auto px-4 py-8 flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
@@ -174,7 +174,19 @@ function FeedbackPage() {
     );
   }
 
-  const scorePercentage = (feedback.totalScore / maxScore) * 100;
+  // DEBUG: Log percentage calculation
+  const assignmentTotalMarks = assignmentMeta.maxMarks;
+  console.log(`DEBUG PERCENTAGES: Score=${feedback.totalScore}, MaxMarks=${assignmentTotalMarks}`);
+  
+  const scorePercentage = (feedback.totalScore / assignmentTotalMarks) * 100;
+  console.log(`DEBUG: Calculated percentage = ${scorePercentage.toFixed(1)}%`);
+  
+  // DEBUG: Per-question calculation
+  console.log("DEBUG: Per-question point calculations:");
+  feedback.questionResponses.forEach((q, i) => {
+    const questionMaxMarks = assignmentMeta.questions[i]?.maxMarks ?? 0;
+    console.log(`Q${i+1}: Score=${q.feedback.marks}/${questionMaxMarks}`);
+  });
 
   return (
     <div className="container mx-auto px-4 space-y-6 py-8 max-w-5xl">
@@ -217,50 +229,54 @@ function FeedbackPage() {
             <CardContent>
               <ScrollArea className="h-[500px] pr-4">
                 <div className="space-y-6">
-                  {feedback.questionResponses.map((question, index) => (
-                    <div
-                      key={question.questionId}
-                      className="border rounded-lg p-4"
-                    >
-                      <div className="flex justify-between items-start mb-3">
-                        <h3 className="font-medium text-lg">
-                          Question {index + 1}
-                        </h3>
-                        <Badge
-                          variant="outline"
-                          className={getScoreColor(
-                            question.feedback.marks,
-                            maxScore / feedback.questionResponses.length
-                          )}
-                        >
-                          {question.feedback.marks} points
-                        </Badge>
-                      </div>
+                  {feedback.questionResponses.map((question, index) => {
+                    const qMax = assignmentMeta.questions[index]?.maxMarks ?? 0;
+                    return (
+                      <div
+                        key={question.questionId}
+                        className="border rounded-lg p-4"
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <h3 className="font-medium text-lg">
+                            Question {index + 1}
+                          </h3>
+                          <Badge
+                            variant="outline"
+                            className={getScoreColor(question.feedback.marks, qMax)}
+                          >
+                            {question.feedback.marks}/{qMax} points
+                          </Badge>
+                        </div>
 
-                      <div className="mb-3">
-                        <h4 className="text-sm font-medium mb-1">Question</h4>
-                        <p className="text-sm bg-muted p-2 rounded-md">
-                          {question.questionText}
-                        </p>
-                      </div>
+                        <div className="mb-3">
+                          <h4 className="text-sm font-medium mb-1">Question</h4>
+                          <p className="text-sm bg-muted p-2 rounded-md">
+                            {question.questionText}
+                          </p>
+                        </div>
 
-                      <div className="mb-3">
-                        <h4 className="text-sm font-medium mb-1">
-                          Student's Solution
-                        </h4>
-                        <p className="text-sm bg-slate-50 p-2 rounded-md whitespace-pre-wrap">
-                          {question.solution || "No solution provided"}
-                        </p>
-                      </div>
+                        <div className="mb-3">
+                          <h4 className="text-sm font-medium mb-1">
+                            Student's Solution
+                          </h4>
+                          <p className="text-sm bg-slate-50 p-2 rounded-md whitespace-pre-wrap">
+                            {question.solution && question.solution !== "pending" 
+                              ? question.solution 
+                              : "No solution was extracted from the submission"}
+                          </p>
+                        </div>
 
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Feedback</h4>
-                        <p className="text-sm p-2 border-l-2 border-primary pl-3">
-                          {question.feedback.comment || "No feedback provided"}
-                        </p>
+                        <div>
+                          <h4 className="text-sm font-medium mb-1">Feedback</h4>
+                          <p className="text-sm p-2 border-l-2 border-primary pl-3">
+                            {question.feedback.comment && question.feedback.comment !== "No feedback provided"
+                              ? question.feedback.comment
+                              : "The AI was unable to provide specific feedback for this question."}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ScrollArea>
             </CardContent>
@@ -278,13 +294,13 @@ function FeedbackPage() {
                 <div
                   className={`text-4xl font-bold ${getScoreColor(
                     feedback.totalScore,
-                    maxScore
+                    assignmentTotalMarks
                   )}`}
                 >
                   {feedback.totalScore}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  out of {maxScore} points
+                  out of {assignmentTotalMarks} points
                 </p>
               </div>
 
@@ -352,7 +368,11 @@ function FeedbackPage() {
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Submitted on</dt>
                   <dd>
-                    {new Date(feedback.submissionDate).toLocaleDateString()}
+                    {feedback.submissionDate 
+                      ? new Date(feedback.submissionDate).toLocaleDateString() !== "Invalid Date" 
+                        ? new Date(feedback.submissionDate).toLocaleDateString()
+                        : "Not available"
+                      : "Not available"}
                   </dd>
                 </div>
                 <div className="flex justify-between">

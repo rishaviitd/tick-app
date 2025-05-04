@@ -58,24 +58,27 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
                 
                 INSTRUCTIONS:
                 1. Examine the student's answer sheet image
-                2. Identify and grade each answer
-                3. Provide constructive feedback for each question
-                4. Give a total score out of ${
+                2. Extract the student's written solution for each question
+                3. Identify and grade each answer
+                4. Provide constructive feedback for each question
+                5. Give a total score out of ${
                   assignmentDetails.maxMarks || 100
                 }
                 
-                Please return a JSON response with the following structure:
+                Please return a JSON response **only** with the following exact structure (no markdown or code fences):
                 {
                   "overallAssessment": {
                     "summary": "Brief overall assessment of student's work",
-                    "score": number (total score),
-                    "percentage": number (percentage score)
+                    "score": number,
+                    "percentage": number,
+                    "maxScore": number
                   },
                   "questionFeedback": [
                     {
                       "questionNumber": number,
                       "score": number,
                       "maxScore": number,
+                      "extractedSolution": "The extracted solution from student's work",
                       "feedback": "Detailed feedback for this question"
                     }
                   ],
@@ -109,6 +112,15 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
         apiKey.substring(0, 4) + "..." + apiKey.substring(apiKey.length - 4);
       console.log("Using API key:", maskedKey);
     }
+
+    console.log("Assignment Details for Prompt:", {
+      title: assignmentDetails.title,
+      maxMarks: assignmentDetails.maxMarks,
+      questions: assignmentDetails.questions?.map(q => ({
+        text: q.text || q.questionText,
+        maxMarks: q.maxMarks || 0
+      }))
+    });
 
     // Call the Gemini API - use a model that's stable and available
     const response = await fetch(
@@ -154,6 +166,20 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
           percentage: gradingResult.overallAssessment?.percentage,
           feedbackItems: gradingResult.questionFeedback?.length || 0,
         });
+
+        // DEBUG: Log full response structure
+        console.log("FULL GEMINI RESPONSE:", JSON.stringify(gradingResult, null, 2));
+        
+        // DEBUG: Verify questions, scores, and solutions
+        console.log("Question Feedback Details:");
+        gradingResult.questionFeedback?.forEach((q, i) => {
+          console.log(`Q${i+1}: Score=${q.score}/${q.maxScore}, Has Solution: ${!!q.extractedSolution}, Solution Length: ${q.extractedSolution?.length || 0}`);
+        });
+        
+        // DEBUG: Verify percentage calculation
+        const calculatedPercentage = (gradingResult.overallAssessment.score / (assignmentDetails.maxMarks || 100)) * 100;
+        console.log(`Percentage check: ${gradingResult.overallAssessment.score} / ${assignmentDetails.maxMarks} = ${calculatedPercentage.toFixed(2)}%`);
+        console.log(`Gemini returned percentage: ${gradingResult.overallAssessment.percentage}%`);
 
         console.log("===== GRADING SUBMISSION COMPLETE =====");
         return {
@@ -207,19 +233,45 @@ export const updateGradingStatus = async (
 
     // Extract the score and feedback from the grading result
     const totalScore = gradingResult.overallAssessment.score;
+    
+    console.log("DEBUG: Original maxMarks from assignment:", assignmentId);
+    
+    // Verify if the assignment's max marks are being considered
+    console.log(`DEBUG: Total score from Gemini: ${totalScore}`);
+    
+    // DEBUG: Check percentage calculation
+    const rawPercentage = gradingResult.overallAssessment.percentage;
+    console.log(`DEBUG: Raw percentage from Gemini: ${rawPercentage}%`);
 
     // Prepare feedback data for each question
     const questionFeedback =
-      gradingResult.questionFeedback?.map((q) => ({
-        questionId: q.questionNumber.toString(), // Using question number as ID
-        marks: q.score,
-        comment: q.feedback,
-      })) || [];
+      gradingResult.questionFeedback?.map((q) => {
+        console.log(`DEBUG: Processing Q${q.questionNumber} - Score: ${q.score}/${q.maxScore}`);
+        console.log(`DEBUG: Solution for Q${q.questionNumber}: ${q.extractedSolution?.substring(0, 50)}${q.extractedSolution?.length > 50 ? '...' : ''}`);
+        
+        return {
+          questionId: q.questionNumber.toString(), // Using question number as ID
+          marks: q.score,
+          comment: q.feedback,
+          solution: q.extractedSolution || "No solution provided", // Include the extracted solution
+        };
+      }) || [];
 
     console.log("Prepared feedback data:", {
       totalScore,
       feedbackItems: questionFeedback.length,
     });
+    
+    // Log the full data structure being sent to the backend
+    console.log("FULL PAYLOAD BEING SENT TO BACKEND:", JSON.stringify({
+      totalScore: totalScore,
+      feedbackData: questionFeedback,
+      aiFeedback: {
+        overallAssessment: gradingResult.overallAssessment,
+        improvementAreas: gradingResult.improvementAreas || [],
+        strengths: gradingResult.strengths || [],
+      },
+    }, null, 2));
 
     // Update the student's assignment with the grades and feedback
     console.log("Calling updateGrades API endpoint...");
@@ -228,6 +280,7 @@ export const updateGradingStatus = async (
       studentId,
       {
         totalScore: totalScore,
+        maxMarks: gradingResult.overallAssessment.maxScore,
         feedbackData: questionFeedback,
         aiFeedback: {
           overallAssessment: gradingResult.overallAssessment,
