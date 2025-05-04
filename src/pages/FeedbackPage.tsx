@@ -61,23 +61,53 @@ interface DetailedFeedback {
 }
 
 function FeedbackPage() {
-  const { assignmentId, studentId } = useParams<{
-    assignmentId: string;
-    studentId: string;
-  }>();
+  // TEMP DEBUG FLAG: skip API, use hardcoded console payload
+  const DEBUG_OVERRIDE = true;
+  const { assignmentId, studentId } = useParams<{ assignmentId: string; studentId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<DetailedFeedback | null>(null);
   const [maxScore, setMaxScore] = useState<number>(100);
-  const [assignmentMeta, setAssignmentMeta] = useState<{
-    maxMarks: number;
-    questions: { maxMarks: number }[];
-  } | null>(null);
+  const [assignmentMeta, setAssignmentMeta] = useState<{ maxMarks: number; questions: { maxMarks: number; questionText?: string; text?: string }[] } | null>(null);
+
+  // Load debug payload on mount and skip API calls if DEBUG_OVERRIDE
+  useEffect(() => {
+    if (!DEBUG_OVERRIDE) return;
+    const dp = {
+      totalScore: 14,
+      feedbackData: [
+        { questionId: "1", marks: 7, comment: "Correct application of the AM-GM inequality and a clear explanation. Well done!", solution: "Consider the function f(x)=x+1/x for x > 0. By the AM-GM inequality: x + 1/x >= 2√(x * 1/x) = 2. Equality holds when x = 1. Thus, the minimum value is: 2" },
+        { questionId: "2", marks: 3, comment: "The student correctly uses the discriminant method to find m=0. However, the initial approach of comparing roots is flawed and doesn't lead to a correct conclusion. The explanation needs improvement; clearly state why the roots must be equal and why the first method fails.  Focus on the discriminant method which is the appropriate approach for this type of problem.", solution: "First, expand the equation: mx(5x - 6) = 0 => 5mx² - 6mx = 0. Rewrite: x(5mx - 6m) = 0. Roots are x = 0 and x = 6/5. For the equation to have two equal roots, both roots must coincide: 0 = 6/5 (which is impossible unless m = 0). Alternatively, we check the discriminant: Δ = b² - 4ac = (-6m)² - 4(5m)(0) = 36m². Set discriminant to zero for equal roots: 36m² = 0 => m = 0. Thus, the required value is: m = 0" },
+        { questionId: "3", marks: 4, comment: "Correct application of the quadratic formula and calculation of the discriminant.  The simplification of the roots and presentation of the final answer are well done. However, showing the steps for simplification from (6p ± 6q)/18 to (p ± q)/3 would improve the clarity of the solution.", solution: "Apply the quadratic formula. Here, a = 9, b = -6p, c = p² - q². Compute discriminant: Δ = (-6p)² - 4(9)(p² - q²) = 36p² - 36p² + 36q² = 36q². Calculate roots: x = (6p ± √36q²) / 18 = (6p ± 6q) / 18 = (p ± q) / 3. Final solutions: x = (p + q) / 3, x = (p - q) / 3" }
+      ],
+      aiFeedback: {
+        overallAssessment: { summary: "The student demonstrates a good understanding...", score: "14", correctness: "" },
+        improvementAreas: ["Improve clarity and structure of solutions","Justify steps and reasoning more explicitly","Master multiple approaches for solving quadratic equations","Practice more problems to build confidence and identify weaknesses"],
+        strengths: ["Good understanding of AM-GM inequality","Correct application of the quadratic formula","Ability to compute discriminants"]
+      }
+    };
+    // Populate the UI state
+    setFeedback({
+      assignmentId: assignmentId!,
+      studentId: studentId!,
+      studentName: "",
+      assignmentTitle: "",
+      status: "graded",
+      totalScore: dp.totalScore,
+      maxMarks: dp.aiFeedback.overallAssessment.correctness ? Number(dp.aiFeedback.overallAssessment.correctness) : dp.feedbackData.reduce((sum, q) => sum + q.marks, 0),
+      submissionDate: "",
+      aiFeedback: dp.aiFeedback,
+      questionResponses: dp.feedbackData.map(d => ({ questionId: d.questionId, questionText: '', solution: d.solution, feedback: { marks: d.marks, comment: d.comment } })),
+    });
+    setAssignmentMeta({ maxMarks: dp.aiFeedback.overallAssessment.correctness ? Number(dp.aiFeedback.overallAssessment.correctness) : dp.feedbackData.reduce((sum, q) => sum + q.marks, 0), questions: dp.feedbackData.map(d => ({ maxMarks: d.marks, questionText: '' })) });
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
+      if (DEBUG_OVERRIDE) return;
       try {
         console.log(
           "Loading feedback and assignment metadata for assignment " +
@@ -93,7 +123,38 @@ function FeedbackPage() {
         console.log("Assignment API response:", assignResp);
 
         if (feedbackResp.data.success) {
-          setFeedback(feedbackResp.data.data);
+          if (feedbackResp.data.data.feedbackData) {
+            const dp = feedbackResp.data.data;
+            const questionsMeta = assignResp.data.data.questions || [];
+            // Build a clean AIFeedback shape
+            const cleanAiFeedback: AIFeedback = {
+              overallAssessment: {
+                summary: dp.aiFeedback.overallAssessment.summary,
+                score: String(dp.aiFeedback.overallAssessment.score),
+                correctness: "",
+              },
+              improvementAreas: dp.aiFeedback.improvementAreas,
+              strengths: dp.aiFeedback.strengths,
+            };
+            const mapped: DetailedFeedback = {
+              ...dp,
+              totalScore: dp.totalScore,
+              maxMarks: assignResp.data.data.maxMarks || 0,
+              aiFeedback: cleanAiFeedback,
+              questionResponses: dp.feedbackData.map((d: any, idx: number) => ({
+                questionId: d.questionId,
+                questionText: questionsMeta[idx]?.text || questionsMeta[idx]?.questionText || '',
+                solution: d.solution || '',
+                feedback: {
+                  marks: d.marks,
+                  comment: d.comment,
+                },
+              })),
+            };
+            setFeedback(mapped);
+          } else {
+            setFeedback(feedbackResp.data.data);
+          }
         } else {
           throw new Error(
             feedbackResp.data.message || "Failed to fetch feedback"
