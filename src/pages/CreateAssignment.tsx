@@ -853,8 +853,8 @@ const CreateAssignment = () => {
         // If we were editing, navigate back to the assignment detail
         if (isEditing) {
           navigate(`/assignment/${editId}`);
-        } else {
-          navigate("/dashboard");
+      } else {
+        navigate("/dashboard");
         }
       }
     } catch (error) {
@@ -1190,6 +1190,37 @@ const CreateAssignment = () => {
         </div>
       </div>
 
+      <Button
+        variant="ghost"
+        size="sm"
+        className="flex items-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        onClick={() => {
+          // Check the source context to determine where to navigate back to
+          const params = new URLSearchParams(location.search);
+          const editId = params.get('edit');
+          const draftParam = params.get('draft');
+          
+          if (editId) {
+            // If editing an existing assignment, go back to that assignment detail
+            navigate(`/assignment/${editId}`);
+          } else if (draftParam) {
+            // If working on a draft, go back to dashboard
+            navigate('/dashboard');
+          } else if (classId) {
+            // If associated with a class, go back to class page
+            navigate(`/class/${classId}`);
+          } else {
+            // Default fallback
+            navigate('/dashboard');
+          }
+        }}
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        {location.search.includes('edit=') ? "Back to Assignment" : 
+         location.search.includes('draft=') ? "Back to Dashboard" : 
+         classId ? "Back to Class" : "Back to Dashboard"}
+      </Button>
+
       {/* Title Input Dialog */}
       <Dialog open={showTitleDialog} onOpenChange={setShowTitleDialog}>
         <DialogContent className="sm:max-w-md">
@@ -1302,114 +1333,114 @@ const CreateAssignment = () => {
 
         <TabsContent value="questions" className="space-y-4">
           {extractedQuestions.length === 0 && (
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-center space-y-4">
-                  {!uploadedImages.length ? (
-                    <>
-                      <FileUp
-                        size={40}
-                        className="mx-auto text-muted-foreground"
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center space-y-4">
+                {!uploadedImages.length ? (
+                  <>
+                    <FileUp
+                      size={40}
+                      className="mx-auto text-muted-foreground"
+                    />
+                    <div>
+                      <p className="font-medium">
+                        Upload and Extract Questions using AI
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Upload images of your question paper for analysis
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-center gap-3">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                        accept="image/*"
+                        multiple
+                        className="hidden"
                       />
-                      <div>
-                        <p className="font-medium">
-                          Upload and Extract Questions using AI
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Upload images of your question paper for analysis
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-center gap-3">
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleImageUpload}
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                        />
-                        <Button
-                          onClick={() => fileInputRef.current?.click()}
-                          variant="outline"
+                      <Button
+                        onClick={() => fileInputRef.current?.click()}
+                        variant="outline"
                           className="w-full max-w-xs bg-[#58CC02] hover:bg-[#51AA02] text-white"
-                        >
-                          <Upload className="mr-2 h-4 w-4" />
-                          Upload Question Paper
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-center mb-4">
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Question Paper
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-center mb-4">
                         <FileText size={40} className="text-[#58CC02]" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Question Paper Uploaded</p>
-                        <div className="mt-2 space-y-1">
-                          {uploadedImages.map((file, index) => (
-                            <p
-                              key={index}
-                              className="text-sm text-muted-foreground"
-                            >
-                              {file.name} ({(file.size / 1024).toFixed(1)} KB)
-                              {fileStatus[file.name] && (
-                                <span
-                                  className={`ml-2 ${
-                                    fileStatus[file.name].status === "completed"
-                                      ? "text-green-500"
-                                      : fileStatus[file.name].status === "failed"
-                                      ? "text-red-500"
-                                      : fileStatus[file.name].status ===
-                                        "processing"
-                                      ? "text-amber-500"
-                                      : "text-gray-500"
-                                  }`}
-                                >
-                                  {fileStatus[file.name].status ===
-                                  "completed"
-                                    ? "✓"
-                                    : fileStatus[file.name].status ===
-                                      "failed"
-                                    ? "✗"
+                    </div>
+                    <div>
+                      <p className="font-medium">Question Paper Uploaded</p>
+                      <div className="mt-2 space-y-1">
+                        {uploadedImages.map((file, index) => (
+                          <p
+                            key={index}
+                            className="text-sm text-muted-foreground"
+                          >
+                            {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                            {fileStatus[file.name] && (
+                              <span
+                                className={`ml-2 ${
+                                  fileStatus[file.name].status === "completed"
+                                    ? "text-green-500"
+                                    : fileStatus[file.name].status === "failed"
+                                    ? "text-red-500"
                                     : fileStatus[file.name].status ===
                                       "processing"
-                                    ? "..."
-                                    : ""}
-                                </span>
-                              )}
-                            </p>
-                          ))}
-                        </div>
+                                    ? "text-amber-500"
+                                    : "text-gray-500"
+                                }`}
+                              >
+                                  {fileStatus[file.name].status ===
+                                  "completed"
+                                  ? "✓"
+                                    : fileStatus[file.name].status ===
+                                      "failed"
+                                  ? "✗"
+                                  : fileStatus[file.name].status ===
+                                    "processing"
+                                  ? "..."
+                                  : ""}
+                              </span>
+                            )}
+                          </p>
+                        ))}
                       </div>
-                      <div className="flex flex-col items-center gap-3">
-                        <Button
-                          onClick={handleAnalyzeImages}
+                    </div>
+                    <div className="flex flex-col items-center gap-3">
+                      <Button
+                        onClick={handleAnalyzeImages}
                           disabled={!uploadedImages.length || isProcessing}
                           className="w-full bg-[#58CC02] hover:bg-[#51AA02] text-white flex items-center justify-center gap-2"
                         >
                           <Wand2 className="h-4 w-4" />
-                          Analyze with AI
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setUploadedImages([]);
-                            setFileStatus({});
-                            if (fileInputRef.current) {
-                              fileInputRef.current.value = "";
-                            }
-                          }}
-                          className="text-sm"
-                        >
-                          Upload Different Paper
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                            Analyze with AI
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setUploadedImages([]);
+                          setFileStatus({});
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = "";
+                          }
+                        }}
+                        className="text-sm"
+                      >
+                        Upload Different Paper
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
           )}
 
           {extractedQuestions.length > 0 && (
@@ -1427,7 +1458,7 @@ const CreateAssignment = () => {
                     <div key={index} className="border rounded-lg p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center">
-                          <h3 className="font-medium">Question {index + 1}</h3>
+                        <h3 className="font-medium">Question {index + 1}</h3>
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -1521,14 +1552,14 @@ const CreateAssignment = () => {
                           </div>
                         </div>
                       ) : (
-                        <div className="prose prose-sm max-w-none">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkMath]}
-                            rehypePlugins={[rehypeKatex, rehypeRaw]}
-                          >
-                            {question.text}
-                          </ReactMarkdown>
-                        </div>
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkMath]}
+                          rehypePlugins={[rehypeKatex, rehypeRaw]}
+                        >
+                          {question.text}
+                        </ReactMarkdown>
+                      </div>
                       )}
                     </div>
                   ))}
@@ -1536,7 +1567,7 @@ const CreateAssignment = () => {
               </CardContent>
               <CardFooter className="flex justify-end">
                 <Button
-                  className="bg-[#58CC02] hover:bg-[#51AA02] text-white w-full"
+                  className="bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200 w-full"
                   onClick={handleSaveAndContinue}
                 >
                   Save and Continue
@@ -1644,11 +1675,11 @@ const CreateAssignment = () => {
                             </Button>
                           </div>
                           {isEditing[`rubric-${question.id}`] ? (
-                            <Textarea
-                              id={`rubric-${question.id}`}
-                              placeholder="Define grading criteria for this question..."
+                          <Textarea
+                            id={`rubric-${question.id}`}
+                            placeholder="Define grading criteria for this question..."
                               className="min-h-[300px] max-h-[300px] w-full overflow-y-auto bg-muted border border-muted rounded-lg p-4"
-                              value={questionRubrics[question.id] || ""}
+                            value={questionRubrics[question.id] || ""}
                               onChange={(e) => updateQuestionRubric(question.id, e.target.value)}
                             />
                           ) : (
@@ -1659,7 +1690,7 @@ const CreateAssignment = () => {
                               >
                                 {questionRubrics[question.id] || ""}
                               </ReactMarkdown>
-                            </div>
+                        </div>
                           )}
                         </div>
                         
@@ -1683,7 +1714,7 @@ const CreateAssignment = () => {
                 <Button
                   onClick={initiateDraftSave}
                   variant="outline"
-                  className="w-full bg-[#58CC02] hover:bg-[#51AA02] text-white"
+                  className="w-full bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200"
                 >
                   <Save className="mr-2 h-4 w-4" />
                   Save Draft
@@ -1691,7 +1722,7 @@ const CreateAssignment = () => {
                 <Button
                   onClick={initiateAssignmentSave}
                   disabled={!allRubricsFilled}
-                  className="w-full bg-[#58CC02] hover:bg-[#51AA02] text-white"
+                  className="w-full bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200"
                 >
                   Create Assignment
                 </Button>

@@ -69,9 +69,9 @@ export const AssignmentsTab = ({
     <div className="space-y-6">
       <Button
         onClick={handleCreateAssignment}
-        className="w-full bg-[#58CC02] hover:bg-[#51AA02] text-white flex items-center justify-center gap-2"
+        className="w-full flex items-center justify-center gap-2 bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200 py-6"
       >
-        <PlusCircle size={18} />
+        <PlusCircle size={20} />
         Create Assignment
       </Button>
 

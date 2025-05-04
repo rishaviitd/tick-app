@@ -13,6 +13,7 @@ import {
   RotateCcw,
   AlertCircle,
   Upload,
+  ArrowLeft,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -849,9 +850,26 @@ const AssignmentDetailPage = () => {
   ).length;
 
   const totalStudents = assignment.students.length;
+  
+  // Recalculate completion percentage based on graded students
+  const completionPercentage = totalStudents > 0 
+    ? Math.round((gradedCount / totalStudents) * 100)
+    : 0;
 
   return (
     <div className="container mx-auto px-4 space-y-6 pb-8 max-w-5xl">
+      {assignment && assignment.classId && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="flex items-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          onClick={() => navigate(`/class/${assignment.classId}`)}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Class
+        </Button>
+      )}
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
@@ -862,15 +880,27 @@ const AssignmentDetailPage = () => {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={handleEditAssignment}>
+          <Button 
+            variant="outline" 
+            onClick={handleEditAssignment}
+            className="hover:bg-gray-50 transition-colors"
+          >
             <Edit className="mr-2 h-4 w-4" />
             Edit Assignment
           </Button>
-          <Button variant="outline" onClick={handleShareResults}>
+          <Button 
+            variant="outline" 
+            onClick={handleShareResults}
+            className="hover:bg-gray-50 transition-colors"
+          >
             <Share2 className="mr-2 h-4 w-4" />
             Share Results
           </Button>
-          <Button variant="outline" asChild>
+          <Button 
+            variant="outline" 
+            asChild
+            className="hover:bg-gray-50 transition-colors"
+          >
             <Link to={`/assignment/${assignmentId}/analytics`}>
               <BarChart className="mr-2 h-4 w-4" />
               Analytics
@@ -887,9 +917,9 @@ const AssignmentDetailPage = () => {
                 <span>
                   {gradedCount} of {totalStudents} graded
                 </span>
-                <span className="font-medium">{assignment.completion}%</span>
+                <span className="font-medium">{completionPercentage}%</span>
               </div>
-              <Progress value={assignment.completion} className="h-1" />
+              <Progress value={completionPercentage} className="h-1" />
             </div>
           </CardContent>
         </Card>
@@ -1224,11 +1254,15 @@ const AssignmentDetailPage = () => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button variant="outline" onClick={() => setResetConfirmOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setResetConfirmOpen(false)}
+              className="hover:bg-gray-50 transition-colors"
+            >
               Cancel
             </Button>
             <Button 
-              className="bg-[#58CC02] hover:bg-[#51AA02] text-white"
+              className="bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200"
               onClick={() => studentToReset && handleResetGrading(studentToReset.id, studentToReset.name)}
             >
               Yes, Reset

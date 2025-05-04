@@ -34,17 +34,17 @@ export const AssignmentCard = ({
   const statusConfig = {
     draft: {
       label: "Draft",
-      color: "bg-gray-100 text-gray-800",
+      color: "bg-gray-50 text-gray-500 border-gray-200",
       icon: Clock,
     },
     active: {
       label: "Active",
-      color: "bg-[#EEF9EE] text-[#58CC02]",
+      color: "bg-[#EEF9EE]/60 text-[#58CC02] border-[#EEF9EE]",
       icon: AlertCircle,
     },
     completed: {
       label: "Completed",
-      color: "bg-[#EEF9EE] text-[#51AA02]",
+      color: "bg-[#EEF9EE]/60 text-[#51AA02] border-[#EEF9EE]",
       icon: CheckCircle,
     },
   };
@@ -61,11 +61,11 @@ export const AssignmentCard = ({
 
   return (
     <Card
-      className="overflow-hidden hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] transition-all duration-300 border border-gray-100 active:bg-gray-50 w-full"
+      className="overflow-hidden hover:shadow-md transition-all duration-200 border border-gray-100/60 active:bg-gray-50/40 w-full"
       onClick={handleClick}
     >
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-2">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
           <h3 className="font-semibold text-base truncate pr-2">{title}</h3>
           {status !== "active" && (
             <Badge variant="outline" className={statusConfig[status].color}>

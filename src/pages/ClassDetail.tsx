@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClassData } from "@/types/class";
 import { ClassSummary } from "@/components/Class/ClassSummary";
@@ -7,6 +7,8 @@ import { AssignmentsTab } from "@/components/Class/AssignmentsTab";
 import { StudentsTab } from "@/components/Class/StudentsTab";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 // Configure axios base URL
 axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
@@ -72,6 +74,7 @@ const fetchDraftAssignments = async (classId: string, token: string): Promise<As
 
 const ClassDetail = () => {
   const { classId } = useParams<{ classId: string }>();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("assignments");
   const [classData, setClassData] = useState<ClassData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -135,8 +138,11 @@ const ClassDetail = () => {
               year: "numeric",
             }),
             status: assignment.active ? "active" : "completed",
-            completion: assignment.active ? 0 : 100,
-            maxMarks: 0, // We'll need to calculate this from questions later
+            // Calculate completion based on graded students
+            completion: assignment.students && assignment.students.length > 0
+              ? Math.round((assignment.students.filter((s: any) => s.status === "graded").length / assignment.students.length) * 100)
+              : assignment.active ? 0 : 100,
+            maxMarks: assignment.maxMarks || 0,
           })) || [];
 
         // Get drafts if the user is authenticated
@@ -188,6 +194,15 @@ const ClassDetail = () => {
 
   return (
     <div className="space-y-6">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="flex items-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        onClick={() => navigate('/dashboard')}
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Back to Dashboard
+      </Button>
       <ClassSummary classData={classData} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

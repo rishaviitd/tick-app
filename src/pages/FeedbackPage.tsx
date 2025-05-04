@@ -181,7 +181,12 @@ function FeedbackPage() {
           <p className="text-muted-foreground">
             {error || "Failed to load feedback"}
           </p>
-          <Button onClick={handleBackClick}>Return to Assignment</Button>
+          <Button 
+            onClick={handleBackClick}
+            className="bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-lg transition-all duration-200"
+          >
+            Return to Assignment
+          </Button>
         </div>
       </div>
     );
@@ -210,7 +215,7 @@ function FeedbackPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="mb-2"
+            className="mb-2 flex items-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
             onClick={handleBackClick}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -220,11 +225,19 @@ function FeedbackPage() {
           <p className="text-muted-foreground">{feedback.studentName}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="hover:bg-gray-50 transition-colors"
+          >
             <Download className="mr-2 h-4 w-4" />
             Export PDF
           </Button>
-          <Button size="sm" onClick={handleShareFeedback}>
+          <Button 
+            size="sm" 
+            onClick={handleShareFeedback}
+            className="bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-lg transition-all duration-200"
+          >
             <Share2 className="mr-2 h-4 w-4" />
             Share
           </Button>
