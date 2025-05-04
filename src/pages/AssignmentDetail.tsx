@@ -58,7 +58,7 @@ const AssignmentDetailPage = () => {
   const { assignmentId } = useParams<{ assignmentId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("results");
+  const [activeTab, setActiveTab] = useState("grade");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +72,8 @@ const AssignmentDetailPage = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [assigningStudent, setAssigningStudent] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [studentToReset, setStudentToReset] = useState<{ id: string, name: string } | null>(null);
 
   // Helper to test Gemini API connection
   const testGeminiApi = async () => {
@@ -209,8 +211,30 @@ const AssignmentDetailPage = () => {
             name: student.full_name || student.name,
           }));
 
-          console.log("Available students to display:", students);
-          setAvailableStudents(students);
+          // Also include students with pending status from our assignment
+          if (assignment && assignment.students) {
+            const pendingStudents = assignment.students
+              .filter(s => s.status === "pending")
+              .map(s => ({
+                id: s.studentId,
+                name: s.studentName
+              }));
+            
+            // Combine and remove duplicates
+            const combinedStudents = [...students];
+            
+            pendingStudents.forEach(pendingStudent => {
+              if (!combinedStudents.some(s => s.id === pendingStudent.id)) {
+                combinedStudents.push(pendingStudent);
+              }
+            });
+            
+            console.log("Available students to display:", combinedStudents);
+            setAvailableStudents(combinedStudents);
+          } else {
+            console.log("Available students to display:", students);
+            setAvailableStudents(students);
+          }
         } else {
           console.warn("Unexpected API response format:", response.data);
 
@@ -555,6 +579,11 @@ const AssignmentDetailPage = () => {
           }
       );
 
+      // Remove student from available students list
+      setAvailableStudents(prevStudents => 
+        prevStudents.filter(s => s.id !== studentId)
+      );
+
       // Prepare grading details
       const gradingDetails = {
         title: assignment.title,
@@ -694,6 +723,75 @@ const AssignmentDetailPage = () => {
   const handleUploadClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
+    }
+  };
+
+  // Add a method to open the reset confirmation dialog
+  const openResetConfirmation = (studentId: string, studentName: string) => {
+    setStudentToReset({ id: studentId, name: studentName });
+    setResetConfirmOpen(true);
+  };
+
+  // Modify the handleResetGrading function to be called from the dialog confirmation
+  const handleResetGrading = async (studentId: string, studentName: string) => {
+    if (!assignmentId) return;
+
+    try {
+      // Update student status to pending in the backend
+      const response = await assignmentApi.updateStudentAssignment(
+        assignmentId,
+        studentId,
+        { status: "pending" }
+      );
+
+      if (response.data.success) {
+        toast({
+          title: "Reset Grading",
+          description: `${studentName}'s status reset to pending.`,
+        });
+
+        // Update the student status in the UI
+        if (assignment) {
+          const updatedStudents = assignment.students.map((s) => {
+            if (s.studentId === studentId) {
+              return { 
+                ...s, 
+                status: "pending" as const,
+                score: undefined, // Remove score when resetting
+              };
+            }
+            return s;
+          });
+
+          setAssignment({ ...assignment, students: updatedStudents });
+          
+          // Add the student to the available students list
+          const studentExists = availableStudents.some(s => s.id === studentId);
+          if (!studentExists) {
+            setAvailableStudents(prev => [
+              ...prev, 
+              { id: studentId, name: studentName }
+            ]);
+          }
+        }
+      } else {
+        toast({
+          title: "Reset Failed",
+          description: response.data.message || "Failed to reset grading status",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Error resetting grading status:", err);
+      toast({
+        title: "Reset Failed",
+        description: "There was a problem resetting the grading status",
+        variant: "destructive",
+      });
+    } finally {
+      // Close the dialog
+      setResetConfirmOpen(false);
+      setStudentToReset(null);
     }
   };
 
@@ -1008,42 +1106,67 @@ const AssignmentDetailPage = () => {
                               </TableCell>
                               <TableCell>
                                 {student.status === "graded" && (
-                                  <div className="flex items-center">
-                                    <CheckCircle
-                                      size={18}
-                                      className="text-green-500 mr-1"
-                                    />
-                                    <span className="text-xs">Graded</span>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                      <CheckCircle
+                                        size={16}
+                                        className="text-green-500 mr-1"
+                                      />
+                                      <span className="text-xs">Graded</span>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => openResetConfirmation(student.studentId, student.studentName)}
+                                      className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 px-2 h-7"
+                                    >
+                                      <RotateCcw size={12} className="mr-1" />
+                                      <span className="text-xs">Reset</span>
+                                    </Button>
                                   </div>
                                 )}
                                 {student.status === "processing" && (
                                   <div className="flex items-center">
                                     <Loader2
-                                      size={18}
+                                      size={16}
                                       className="text-blue-500 animate-spin mr-1"
                                     />
                                     <span className="text-xs">Processing</span>
                                   </div>
                                 )}
                                 {student.status === "failed" && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleRetryGrading(student.studentId)
-                                    }
-                                  >
-                                    <RotateCcw
-                                      size={16}
-                                      className="text-red-500 mr-1"
-                                    />
-                                    <span className="sr-only sm:not-sr-only sm:text-xs">
-                                      Retry
-                                    </span>
-                                  </Button>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                      <AlertCircle
+                                        size={16}
+                                        className="text-red-500 mr-1"
+                                      />
+                                      <span className="text-xs">Failed</span>
+                                    </div>
+                                    <div className="flex space-x-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleRetryGrading(student.studentId)}
+                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 h-7"
+                                      >
+                                        <RotateCcw size={12} className="mr-1" />
+                                        <span className="text-xs">Retry</span>
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => openResetConfirmation(student.studentId, student.studentName)}
+                                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 px-2 h-7"
+                                      >
+                                        <RotateCcw size={12} className="mr-1" />
+                                        <span className="text-xs">Reset</span>
+                                      </Button>
+                                    </div>
+                                  </div>
                                 )}
                                 {student.status === "pending" && (
-                                  <span className="text-gray-500 text-sm">
+                                  <span className="text-gray-500 text-xs">
                                     Pending
                                   </span>
                                 )}
@@ -1081,6 +1204,32 @@ const AssignmentDetailPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <DialogContent className="sm:max-w-[500px] p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Confirm Reset</DialogTitle>
+            <DialogDescription className="py-2 text-base">
+              Are you sure you want to reset grading for {studentToReset?.name}?
+              <br />
+              <span className="block mt-2">
+                This will move them back to pending status and allow reassignment.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button variant="outline" onClick={() => setResetConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              className="bg-[#58CC02] hover:bg-[#51AA02] text-white"
+              onClick={() => studentToReset && handleResetGrading(studentToReset.id, studentToReset.name)}
+            >
+              Yes, Reset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

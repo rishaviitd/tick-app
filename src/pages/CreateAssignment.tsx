@@ -364,29 +364,86 @@ const CreateAssignment = () => {
     const params = new URLSearchParams(location.search);
     const editId = params.get("edit");
 
-    if (editId) {
-      // In a real app, we would fetch the assignment data here
-      // For now, we'll set some mock data
-      setTitle("Linear Equations Test");
-      setMaxMarks("50");
-
-      // Mock questions for editing
-      setQuestions([
-        {
-          id: "q1",
-          questionText: "Solve the quadratic equation: 2x² + 5x - 3 = 0",
-          maxMarks: 10,
-          order: 1,
-        },
-        {
-          id: "q2",
-          questionText: "Find the derivative of f(x) = x³ + 2x² - 5x + 7",
-          maxMarks: 8,
-          order: 2,
-        },
-      ]);
+    if (editId && isAuthenticated) {
+      // Fetch the assignment data based on the ID
+      const fetchAssignmentForEdit = async () => {
+        try {
+          const token = authToken;
+          
+          // Use the full API URL with assignments endpoint
+          const assignmentEndpoint = getApiUrl(`/assignments/${editId}`);
+          
+          const response = await fetch(assignmentEndpoint, {
+            headers: {
+              "x-auth-token": token as string,
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          
+          if (!response.ok) {
+            throw new Error("Failed to fetch assignment details");
+          }
+          
+          const data = await response.json();
+          
+          if (data.success && data.data) {
+            const assignmentData = data.data;
+            
+            // Set the assignment title and marks
+            setTitle(assignmentData.title);
+            setMaxMarks(assignmentData.maxMarks.toString());
+            
+            // Format the questions for the UI
+            const formattedQuestions = assignmentData.questions.map((q: any, index: number) => {
+              const id = crypto.randomUUID();
+              
+              // Store rubric if it exists
+              if (q.rubric) {
+                setQuestionRubrics(prev => ({
+                  ...prev,
+                  [id]: q.rubric
+                }));
+              }
+              
+              return {
+                id,
+                questionText: q.text || q.questionText,
+                maxMarks: q.maxMarks || q.points || 0,
+                order: index + 1,
+                rubric: q.rubric || "",
+              };
+            });
+            
+            // Setup extracted questions format for display
+            const extractedQuestionsFormat = formattedQuestions.map(q => ({
+              text: q.questionText,
+              points: q.maxMarks,
+              sourceFile: "imported" // Indicate this came from an existing assignment
+            }));
+            
+            setQuestions(formattedQuestions);
+            setExtractedQuestions(extractedQuestionsFormat);
+            
+            toast({
+              title: "Assignment Loaded",
+              description: "You can now edit the assignment details.",
+            });
+          } else {
+            throw new Error("Invalid assignment data format");
+          }
+        } catch (error) {
+          console.error("Error fetching assignment for edit:", error);
+          toast({
+            title: "Error Loading Assignment",
+            description: error.message || "Failed to load assignment for editing.",
+            variant: "destructive",
+          });
+        }
+      };
+      
+      fetchAssignmentForEdit();
     }
-  }, [location]);
+  }, [location, isAuthenticated, authToken, toast]);
 
   // Parse the URL to check if we're loading a draft
   useEffect(() => {
@@ -692,30 +749,40 @@ const CreateAssignment = () => {
       return;
     }
 
+    // Check if we're editing an existing assignment
+    const searchParams = new URLSearchParams(location.search);
+    const editId = searchParams.get("edit");
+    const isEditing = !!editId;
+
     try {
       const token = authToken;
       const calculatedMaxMarks = calculateTotalMarks();
 
-      // Format data for creating the assignment
+      // Format data for creating/updating the assignment
       const assignmentData = {
         title,
         maxMarks: calculatedMaxMarks,
         questions: questions.map((q) => ({
-          text: q.questionText || "", // Ensure text is a string
+          text: q.questionText || "", 
           maxMarks: q.maxMarks || 0,
-          rubric: q.rubric || (q.id && questionRubrics[q.id]) || "", // Ensure rubric is a string
+          rubric: q.rubric || (q.id && questionRubrics[q.id]) || "", 
         })),
-        active: true, // Set as active by default
-        classId: classId, // Pass the current classId from URL params
+        active: true, 
+        classId: classId, 
       };
 
-      // Use the full API URL
-      const assignmentEndpoint = getApiUrl("/assignments");
-      console.log("Sending request to:", assignmentEndpoint);
+      // Determine endpoint and HTTP method based on operation
+      const assignmentEndpoint = isEditing 
+        ? getApiUrl(`/assignments/${editId}`) 
+        : getApiUrl("/assignments");
+      
+      const httpMethod = isEditing ? "PUT" : "POST";
+      
+      console.log(`${isEditing ? "Updating" : "Creating"} assignment at:`, assignmentEndpoint);
 
-      // Call the API to create the assignment
+      // Call the API to create/update the assignment
       const response = await fetch(assignmentEndpoint, {
-        method: "POST",
+        method: httpMethod,
         headers: {
           "Content-Type": "application/json",
           "x-auth-token": token as string,
@@ -725,14 +792,14 @@ const CreateAssignment = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create assignment");
+        throw new Error(errorData.message || `Failed to ${isEditing ? "update" : "create"} assignment`);
       }
 
       const data = await response.json();
 
       // If this was created from a draft, delete the draft
-      // Only attempt to delete if the title is a valid non-empty string
-      if (title && title.trim()) {
+      // Only attempt to delete if the title is a valid non-empty string and we're not editing
+      if (!isEditing && title && title.trim()) {
         try {
           console.log(`Attempting to delete draft with title: "${title}"`);
 
@@ -773,23 +840,29 @@ const CreateAssignment = () => {
       }
 
       toast({
-        title: "Assignment Created",
-        description:
-          "The assignment has been created and activated successfully.",
+        title: isEditing ? "Assignment Updated" : "Assignment Created",
+        description: isEditing 
+          ? "The assignment has been updated successfully."
+          : "The assignment has been created and activated successfully.",
       });
 
       // Navigate to the class page if classId exists, otherwise to dashboard
       if (classId) {
         navigate(`/class/${classId}`);
       } else {
-        navigate("/dashboard");
+        // If we were editing, navigate back to the assignment detail
+        if (isEditing) {
+          navigate(`/assignment/${editId}`);
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (error) {
-      console.error("Error creating assignment:", error);
+      console.error(`Error ${isEditing ? "updating" : "creating"} assignment:`, error);
       toast({
-        title: "Creation Failed",
+        title: isEditing ? "Update Failed" : "Creation Failed",
         description:
-          error.message || "Failed to create assignment. Please try again.",
+          error.message || `Failed to ${isEditing ? "update" : "create"} assignment. Please try again.`,
         variant: "destructive",
       });
     }
@@ -801,7 +874,7 @@ const CreateAssignment = () => {
       return;
     }
 
-    if (extractedQuestions.length === 0) {
+    if (questions.length === 0) {
       toast({
         title: "No Questions",
         description: "Please extract questions before saving as draft.",
@@ -818,17 +891,11 @@ const CreateAssignment = () => {
       const draftData = {
         title,
         maxMarks: calculatedMaxMarks,
-        questions: extractedQuestions.map((q, index) => {
-          const questionId = questions[index]?.id;
-          return {
-            text: q.text || "", // Ensure text is a string
-            points: q.points || 0,
-            rubric:
-              questionId && questionRubrics[questionId]
-                ? questionRubrics[questionId]
-                : questions[index]?.rubric || "", // Ensure rubric is a string
-          };
-        }),
+        questions: questions.map((q) => ({
+          text: q.questionText || "",
+          points: q.maxMarks || 0,
+          rubric: q.rubric || questionRubrics[q.id] || "",
+        })),
       };
 
       console.log("Sending draft data:", draftData);
@@ -1084,6 +1151,13 @@ const CreateAssignment = () => {
 
   // Save questions and continue to rubric
   const handleSaveAndContinue = async () => {
+    // Ensure we have a title
+    if (!title.trim()) {
+      setSavingAction("draft");
+      setShowTitleDialog(true);
+      return;
+    }
+    // Save draft and proceed to rubric
     await saveAsDraft();
     setActiveTab("rubric");
   };

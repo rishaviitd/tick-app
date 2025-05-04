@@ -100,13 +100,13 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
+                <Button
+                  variant="outline"
             size="icon"
-            onClick={handleImportStudents}
+                  onClick={handleImportStudents}
             className="hover:text-[#58CC02] hover:border-[#58CC02] h-10 w-10 md:flex items-center justify-center hidden"
-          >
-            <Upload size={16} />
+                >
+                  <Upload size={16} />
           </Button>
           <Button
             variant="outline"
@@ -116,15 +116,15 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
           >
             <Upload size={16} className="mr-2" />
             Import
-          </Button>
+                </Button>
 
-          <Button
-            variant="outline"
+                <Button
+                  variant="outline"
             size="icon"
-            onClick={handleExportStudents}
+                  onClick={handleExportStudents}
             className="hover:text-[#58CC02] hover:border-[#58CC02] h-10 w-10 md:flex items-center justify-center hidden"
-          >
-            <Download size={16} />
+                >
+                  <Download size={16} />
           </Button>
           <Button
             variant="outline"
@@ -134,15 +134,15 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
           >
             <Download size={16} className="mr-2" />
             Export
-          </Button>
+                </Button>
 
-          <Button
-            variant="outline"
+                <Button
+                  variant="outline"
             size="icon"
-            onClick={handleAddStudent}
+                  onClick={handleAddStudent}
             className="hover:text-[#58CC02] hover:border-[#58CC02] h-10 w-10 md:flex items-center justify-center hidden"
-          >
-            <PlusCircle size={16} />
+                >
+                  <PlusCircle size={16} />
           </Button>
           <Button
             variant="outline"
@@ -152,7 +152,7 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
           >
             <PlusCircle size={16} className="mr-2" />
             Add
-          </Button>
+                </Button>
         </div>
       </div>
 
@@ -195,8 +195,8 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
                             variant="ghost" 
                             size="icon" 
                             className="h-8 w-8 hover:text-[#58CC02] hover:bg-[#EEF9EE]"
-                            onClick={() => handleViewStudent(student.id)}
-                          >
+                          onClick={() => handleViewStudent(student.id)}
+                        >
                             <UserCircle size={16} />
                           </Button>
                         </TooltipTrigger>
@@ -213,8 +213,8 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
                             variant="ghost" 
                             size="icon" 
                             className="h-8 w-8 hover:text-[#58CC02] hover:bg-[#EEF9EE]"
-                            onClick={() => handleViewAssignments(student.id)}
-                          >
+                          onClick={() => handleViewAssignments(student.id)}
+                        >
                             <FileText size={16} />
                           </Button>
                         </TooltipTrigger>
@@ -231,8 +231,8 @@ export const StudentsTab = ({ students }: StudentsTabProps) => {
                             variant="ghost" 
                             size="icon" 
                             className="h-8 w-8 hover:text-[#58CC02] hover:bg-[#EEF9EE]"
-                            onClick={() => handleEditDetails(student.id)}
-                          >
+                          onClick={() => handleEditDetails(student.id)}
+                        >
                             <Edit size={16} />
                           </Button>
                         </TooltipTrigger>
