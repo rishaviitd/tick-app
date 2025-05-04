@@ -28,9 +28,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface QuestionFeedback {
   questionId: string;
+  questionNumber: number;
   questionText: string;
+  maxMarks: number;
   solution: string;
-  maxMarks?: number;
   feedback: {
     marks: number;
     comment: string;
@@ -38,13 +39,23 @@ interface QuestionFeedback {
 }
 
 interface AIFeedback {
-  overallAssessment?: {
+  overallAssessment: {
     summary: string;
     score: string;
     correctness: string;
   };
-  improvementAreas?: string[];
-  strengths?: string[];
+  stepAnalysis?: {
+    stepNumber: number;
+    status: string;
+    justification: string;
+    skillPoints: string[];
+  }[];
+  transitionAnalysis?: {
+    quality: string;
+    comments: string;
+  };
+  improvements: string[];
+  teacherFeedbackAnalysis?: string;
 }
 
 interface DetailedFeedback {
@@ -54,7 +65,7 @@ interface DetailedFeedback {
   assignmentTitle: string;
   status: string;
   totalScore: number;
-  maxMarks?: number;
+  maxMarks: number;
   submissionDate: string;
   aiFeedback: AIFeedback | null;
   questionResponses: QuestionFeedback[];
@@ -71,15 +82,23 @@ function FeedbackPage() {
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<DetailedFeedback | null>(null);
   const [maxScore, setMaxScore] = useState<number>(100);
-  const [assignmentMeta, setAssignmentMeta] = useState<{ maxMarks: number; questions: { maxMarks: number }[] } | null>(null);
+  const [assignmentMeta, setAssignmentMeta] = useState<{
+    maxMarks: number;
+    questions: { maxMarks: number }[];
+  } | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        console.log("Loading feedback and assignment metadata for assignment " + assignmentId + ", student " + studentId);
+        console.log(
+          "Loading feedback and assignment metadata for assignment " +
+            assignmentId +
+            ", student " +
+            studentId
+        );
         const [feedbackResp, assignResp] = await Promise.all([
           aiGradingApi.getDetailedFeedback(assignmentId!, studentId!),
-          assignmentApi.getDetails(assignmentId!)
+          assignmentApi.getDetails(assignmentId!),
         ]);
         console.log("Feedback API response:", feedbackResp);
         console.log("Assignment API response:", assignResp);
@@ -87,12 +106,17 @@ function FeedbackPage() {
         if (feedbackResp.data.success) {
           setFeedback(feedbackResp.data.data);
         } else {
-          throw new Error(feedbackResp.data.message || "Failed to fetch feedback");
+          throw new Error(
+            feedbackResp.data.message || "Failed to fetch feedback"
+          );
         }
 
         if (assignResp.data.success) {
           const assignData = assignResp.data.data;
-          setAssignmentMeta({ maxMarks: assignData.maxMarks || 0, questions: assignData.questions });
+          setAssignmentMeta({
+            maxMarks: assignData.maxMarks || 0,
+            questions: assignData.questions,
+          });
           setMaxScore(assignData.maxMarks || 0);
         } else {
           console.warn("Failed to fetch assignment metadata");
@@ -176,16 +200,18 @@ function FeedbackPage() {
 
   // DEBUG: Log percentage calculation
   const assignmentTotalMarks = assignmentMeta.maxMarks;
-  console.log(`DEBUG PERCENTAGES: Score=${feedback.totalScore}, MaxMarks=${assignmentTotalMarks}`);
-  
+  console.log(
+    `DEBUG PERCENTAGES: Score=${feedback.totalScore}, MaxMarks=${assignmentTotalMarks}`
+  );
+
   const scorePercentage = (feedback.totalScore / assignmentTotalMarks) * 100;
   console.log(`DEBUG: Calculated percentage = ${scorePercentage.toFixed(1)}%`);
-  
+
   // DEBUG: Per-question calculation
   console.log("DEBUG: Per-question point calculations:");
   feedback.questionResponses.forEach((q, i) => {
     const questionMaxMarks = assignmentMeta.questions[i]?.maxMarks ?? 0;
-    console.log(`Q${i+1}: Score=${q.feedback.marks}/${questionMaxMarks}`);
+    console.log(`Q${i + 1}: Score=${q.feedback.marks}/${questionMaxMarks}`);
   });
 
   return (
@@ -242,7 +268,10 @@ function FeedbackPage() {
                           </h3>
                           <Badge
                             variant="outline"
-                            className={getScoreColor(question.feedback.marks, qMax)}
+                            className={getScoreColor(
+                              question.feedback.marks,
+                              qMax
+                            )}
                           >
                             {question.feedback.marks}/{qMax} points
                           </Badge>
@@ -260,8 +289,9 @@ function FeedbackPage() {
                             Student's Solution
                           </h4>
                           <p className="text-sm bg-slate-50 p-2 rounded-md whitespace-pre-wrap">
-                            {question.solution && question.solution !== "pending" 
-                              ? question.solution 
+                            {question.solution &&
+                            question.solution !== "pending"
+                              ? question.solution
                               : "No solution was extracted from the submission"}
                           </p>
                         </div>
@@ -269,7 +299,8 @@ function FeedbackPage() {
                         <div>
                           <h4 className="text-sm font-medium mb-1">Feedback</h4>
                           <p className="text-sm p-2 border-l-2 border-primary pl-3">
-                            {question.feedback.comment && question.feedback.comment !== "No feedback provided"
+                            {question.feedback.comment &&
+                            question.feedback.comment !== "No feedback provided"
                               ? question.feedback.comment
                               : "The AI was unable to provide specific feedback for this question."}
                           </p>
@@ -318,43 +349,71 @@ function FeedbackPage() {
                     <FileText className="h-4 w-4 mr-1" />
                     Overall Assessment
                   </h3>
-                  <p className="text-sm">
-                    {feedback.aiFeedback.overallAssessment.summary}
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm">
+                      {feedback.aiFeedback.overallAssessment.summary}
+                    </p>
+                    {feedback.aiFeedback.overallAssessment.correctness && (
+                      <p className="text-sm text-muted-foreground">
+                        Correctness:{" "}
+                        {feedback.aiFeedback.overallAssessment.correctness}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {feedback.aiFeedback?.strengths &&
-                feedback.aiFeedback.strengths.length > 0 && (
+              {feedback.aiFeedback?.stepAnalysis &&
+                feedback.aiFeedback.stepAnalysis.length > 0 && (
                   <div className="mb-4">
-                    <h3 className="text-sm font-medium mb-2 flex items-center">
-                      <Award className="h-4 w-4 mr-1" />
-                      Strengths
+                    <h3 className="text-sm font-medium mb-2">
+                      Step-by-Step Analysis
                     </h3>
-                    <ul className="text-sm space-y-1 list-disc pl-5">
-                      {feedback.aiFeedback.strengths.map((strength, index) => (
-                        <li key={index}>{strength}</li>
+                    <div className="space-y-2">
+                      {feedback.aiFeedback.stepAnalysis.map((step, index) => (
+                        <div key={index} className="border rounded-md p-2">
+                          <p className="text-sm font-medium">
+                            Step {step.stepNumber}
+                          </p>
+                          <p className="text-sm">{step.justification}</p>
+                          {step.skillPoints.length > 0 && (
+                            <ul className="text-sm mt-1 list-disc pl-4">
+                              {step.skillPoints.map((point, i) => (
+                                <li key={i}>{point}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 )}
 
-              {feedback.aiFeedback?.improvementAreas &&
-                feedback.aiFeedback.improvementAreas.length > 0 && (
+              {feedback.aiFeedback?.improvements &&
+                feedback.aiFeedback.improvements.length > 0 && (
                   <div>
                     <h3 className="text-sm font-medium mb-2 flex items-center">
                       <Lightbulb className="h-4 w-4 mr-1" />
                       Areas for Improvement
                     </h3>
                     <ul className="text-sm space-y-1 list-disc pl-5">
-                      {feedback.aiFeedback.improvementAreas.map(
-                        (area, index) => (
-                          <li key={index}>{area}</li>
-                        )
-                      )}
+                      {feedback.aiFeedback.improvements.map((area, index) => (
+                        <li key={index}>{area}</li>
+                      ))}
                     </ul>
                   </div>
                 )}
+
+              {feedback.aiFeedback?.teacherFeedbackAnalysis && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium mb-2">
+                    Teacher's Analysis
+                  </h3>
+                  <p className="text-sm bg-muted p-2 rounded-md">
+                    {feedback.aiFeedback.teacherFeedbackAnalysis}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -368,8 +427,10 @@ function FeedbackPage() {
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Submitted on</dt>
                   <dd>
-                    {feedback.submissionDate 
-                      ? new Date(feedback.submissionDate).toLocaleDateString() !== "Invalid Date" 
+                    {feedback.submissionDate
+                      ? new Date(
+                          feedback.submissionDate
+                        ).toLocaleDateString() !== "Invalid Date"
                         ? new Date(feedback.submissionDate).toLocaleDateString()
                         : "Not available"
                       : "Not available"}
