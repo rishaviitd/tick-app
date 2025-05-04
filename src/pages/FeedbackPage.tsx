@@ -28,10 +28,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface QuestionFeedback {
   questionId: string;
-  questionNumber: number;
   questionText: string;
-  maxMarks: number;
   solution: string;
+  maxMarks?: number;
   feedback: {
     marks: number;
     comment: string;
@@ -39,23 +38,13 @@ interface QuestionFeedback {
 }
 
 interface AIFeedback {
-  overallAssessment: {
+  overallAssessment?: {
     summary: string;
     score: string;
     correctness: string;
   };
-  stepAnalysis?: {
-    stepNumber: number;
-    status: string;
-    justification: string;
-    skillPoints: string[];
-  }[];
-  transitionAnalysis?: {
-    quality: string;
-    comments: string;
-  };
-  improvements: string[];
-  teacherFeedbackAnalysis?: string;
+  improvementAreas?: string[];
+  strengths?: string[];
 }
 
 interface DetailedFeedback {
@@ -65,7 +54,7 @@ interface DetailedFeedback {
   assignmentTitle: string;
   status: string;
   totalScore: number;
-  maxMarks: number;
+  maxMarks?: number;
   submissionDate: string;
   aiFeedback: AIFeedback | null;
   questionResponses: QuestionFeedback[];
@@ -349,71 +338,43 @@ function FeedbackPage() {
                     <FileText className="h-4 w-4 mr-1" />
                     Overall Assessment
                   </h3>
-                  <div className="space-y-2">
-                    <p className="text-sm">
-                      {feedback.aiFeedback.overallAssessment.summary}
-                    </p>
-                    {feedback.aiFeedback.overallAssessment.correctness && (
-                      <p className="text-sm text-muted-foreground">
-                        Correctness:{" "}
-                        {feedback.aiFeedback.overallAssessment.correctness}
-                      </p>
-                    )}
-                  </div>
+                  <p className="text-sm">
+                    {feedback.aiFeedback.overallAssessment.summary}
+                  </p>
                 </div>
               )}
 
-              {feedback.aiFeedback?.stepAnalysis &&
-                feedback.aiFeedback.stepAnalysis.length > 0 && (
+              {feedback.aiFeedback?.strengths &&
+                feedback.aiFeedback.strengths.length > 0 && (
                   <div className="mb-4">
-                    <h3 className="text-sm font-medium mb-2">
-                      Step-by-Step Analysis
+                    <h3 className="text-sm font-medium mb-2 flex items-center">
+                      <Award className="h-4 w-4 mr-1" />
+                      Strengths
                     </h3>
-                    <div className="space-y-2">
-                      {feedback.aiFeedback.stepAnalysis.map((step, index) => (
-                        <div key={index} className="border rounded-md p-2">
-                          <p className="text-sm font-medium">
-                            Step {step.stepNumber}
-                          </p>
-                          <p className="text-sm">{step.justification}</p>
-                          {step.skillPoints.length > 0 && (
-                            <ul className="text-sm mt-1 list-disc pl-4">
-                              {step.skillPoints.map((point, i) => (
-                                <li key={i}>{point}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
+                    <ul className="text-sm space-y-1 list-disc pl-5">
+                      {feedback.aiFeedback.strengths.map((strength, index) => (
+                        <li key={index}>{strength}</li>
                       ))}
-                    </div>
+                    </ul>
                   </div>
                 )}
 
-              {feedback.aiFeedback?.improvements &&
-                feedback.aiFeedback.improvements.length > 0 && (
+              {feedback.aiFeedback?.improvementAreas &&
+                feedback.aiFeedback.improvementAreas.length > 0 && (
                   <div>
                     <h3 className="text-sm font-medium mb-2 flex items-center">
                       <Lightbulb className="h-4 w-4 mr-1" />
                       Areas for Improvement
                     </h3>
                     <ul className="text-sm space-y-1 list-disc pl-5">
-                      {feedback.aiFeedback.improvements.map((area, index) => (
-                        <li key={index}>{area}</li>
-                      ))}
+                      {feedback.aiFeedback.improvementAreas.map(
+                        (area, index) => (
+                          <li key={index}>{area}</li>
+                        )
+                      )}
                     </ul>
                   </div>
                 )}
-
-              {feedback.aiFeedback?.teacherFeedbackAnalysis && (
-                <div className="mt-4">
-                  <h3 className="text-sm font-medium mb-2">
-                    Teacher's Analysis
-                  </h3>
-                  <p className="text-sm bg-muted p-2 rounded-md">
-                    {feedback.aiFeedback.teacherFeedbackAnalysis}
-                  </p>
-                </div>
-              )}
             </CardContent>
           </Card>
 

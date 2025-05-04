@@ -69,20 +69,9 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
                 {
                   "overallAssessment": {
                     "summary": "Brief overall assessment of student's work",
-                    "score": "Numerical score",
-                    "correctness": "Overall correctness assessment"
-                  },
-                  "stepAnalysis": [
-                    {
-                      "stepNumber": number,
-                      "status": "correct/incorrect/partial",
-                      "justification": "Explanation of the step evaluation",
-                      "skillPoints": ["List of skills demonstrated or needed"]
-                    }
-                  ],
-                  "transitionAnalysis": {
-                    "quality": "Good/Fair/Poor",
-                    "comments": "Comments on solution flow"
+                    "score": number,
+                    "percentage": number,
+                    "maxScore": number
                   },
                   "questionFeedback": [
                     {
@@ -93,8 +82,8 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
                       "feedback": "Detailed feedback for this question"
                     }
                   ],
-                  "improvements": ["List of areas where the student can improve"],
-                  "teacherFeedbackAnalysis": "Additional insights for teacher reference"
+                  "improvementAreas": ["List of areas where the student can improve"],
+                  "strengths": ["List of student's strengths"]
                 }`,
             },
             {
@@ -272,40 +261,65 @@ export const updateGradingStatus = async (
     const rawPercentage = gradingResult.overallAssessment.percentage;
     console.log(`DEBUG: Raw percentage from Gemini: ${rawPercentage}%`);
 
-    // Update the feedback processing in updateGradingStatus:
-    const feedbackData =
-      gradingResult.questionFeedback?.map((q) => ({
-        questionId: q.questionNumber.toString(),
-        marks: q.score,
-        comment: q.feedback,
-        solution: q.extractedSolution || "No solution provided",
-      })) || [];
+    // Prepare feedback data for each question
+    const questionFeedback =
+      gradingResult.questionFeedback?.map((q) => {
+        console.log(
+          `DEBUG: Processing Q${q.questionNumber} - Score: ${q.score}/${q.maxScore}`
+        );
+        console.log(
+          `DEBUG: Solution for Q${
+            q.questionNumber
+          }: ${q.extractedSolution?.substring(0, 50)}${
+            q.extractedSolution?.length > 50 ? "..." : ""
+          }`
+        );
 
-    // Prepare the AI feedback structure
-    const aiFeedback = {
-      overallAssessment: {
-        summary: gradingResult.overallAssessment.summary,
-        score: gradingResult.overallAssessment.score,
-        correctness: gradingResult.overallAssessment.correctness,
-      },
-      stepAnalysis: gradingResult.stepAnalysis || [],
-      transitionAnalysis: gradingResult.transitionAnalysis || {
-        quality: "Not evaluated",
-        comments: "",
-      },
-      improvements: gradingResult.improvements || [],
-      teacherFeedbackAnalysis: gradingResult.teacherFeedbackAnalysis || "",
-    };
+        return {
+          questionId: q.questionNumber.toString(), // Using question number as ID
+          marks: q.score,
+          comment: q.feedback,
+          solution: q.extractedSolution || "No solution provided", // Include the extracted solution
+        };
+      }) || [];
 
-    // Update the grades
+    console.log("Prepared feedback data:", {
+      totalScore,
+      feedbackItems: questionFeedback.length,
+    });
+
+    // Log the full data structure being sent to the backend
+    console.log(
+      "FULL PAYLOAD BEING SENT TO BACKEND:",
+      JSON.stringify(
+        {
+          totalScore: totalScore,
+          feedbackData: questionFeedback,
+          aiFeedback: {
+            overallAssessment: gradingResult.overallAssessment,
+            improvementAreas: gradingResult.improvementAreas || [],
+            strengths: gradingResult.strengths || [],
+          },
+        },
+        null,
+        2
+      )
+    );
+
+    // Update the student's assignment with the grades and feedback
+    console.log("Calling updateGrades API endpoint...");
     const updateResponse = await aiGradingApi.updateGrades(
       assignmentId,
       studentId,
       {
         totalScore: totalScore,
         maxMarks: gradingResult.overallAssessment.maxScore,
-        feedbackData,
-        aiFeedback,
+        feedbackData: questionFeedback,
+        aiFeedback: {
+          overallAssessment: gradingResult.overallAssessment,
+          improvementAreas: gradingResult.improvementAreas || [],
+          strengths: gradingResult.strengths || [],
+        },
       }
     );
 
