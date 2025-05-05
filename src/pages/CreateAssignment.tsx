@@ -1222,7 +1222,9 @@ const CreateAssignment = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight text-gray-800">
-          Create Assignment
+          {location.search.includes("edit=")
+            ? "Edit Assignment"
+            : "Create Assignment"}
         </h1>
         <div className="flex gap-2">
           {!isLoading && !isAuthenticated && (
@@ -1823,21 +1825,34 @@ const CreateAssignment = () => {
               </Accordion>
 
               <div className="mt-6 flex flex-col space-y-3">
-                <Button
-                  onClick={initiateDraftSave}
-                  variant="outline"
-                  className="w-full bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200"
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Draft
-                </Button>
-                <Button
-                  onClick={initiateAssignmentSave}
-                  disabled={!allRubricsFilled}
-                  className="w-full bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200"
-                >
-                  Create Assignment
-                </Button>
+                {location.search.includes("edit=") ? (
+                  // Single Save button for editing
+                  <Button
+                    onClick={initiateAssignmentSave}
+                    className="w-full bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200"
+                  >
+                    Save
+                  </Button>
+                ) : (
+                  // Draft and Create options for new assignments
+                  <>
+                    <Button
+                      onClick={initiateDraftSave}
+                      variant="outline"
+                      className="w-full bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200"
+                    >
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Draft
+                    </Button>
+                    <Button
+                      onClick={initiateAssignmentSave}
+                      disabled={!allRubricsFilled}
+                      className="w-full bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200"
+                    >
+                      Create Assignment
+                    </Button>
+                  </>
+                )}
               </div>
             </>
           )}
