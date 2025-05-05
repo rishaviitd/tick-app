@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClassData } from "@/types/class";
 import { ClassSummary } from "@/components/Class/ClassSummary";
@@ -30,40 +30,46 @@ interface Assignment {
   maxMarks?: number;
 }
 
-const fetchDraftAssignments = async (classId: string, token: string): Promise<Assignment[]> => {
+const fetchDraftAssignments = async (
+  classId: string,
+  token: string
+): Promise<Assignment[]> => {
   try {
     // Fetch drafts from the API
     const draftsEndpoint = `${axios.defaults.baseURL}/api/v1/assignments/drafts`;
     console.log("Fetching drafts from:", draftsEndpoint);
-    
+
     const draftsResponse = await axios.get(draftsEndpoint, {
       headers: {
         "x-auth-token": token,
         Authorization: `Bearer ${token}`,
-      }
+      },
     });
-    
+
     // Transform draft data to match our interface and filter by classId
     // We'll check if the draft has a classId property and if it matches the current class
     const drafts: Assignment[] = (draftsResponse.data.drafts || [])
       .filter((draft: any) => {
-        // If the draft doesn't have a classId, or if it matches the current class
+        // Include all drafts if they don't have a classId
         return !draft.classId || draft.classId === classId;
       })
       .map((draft: any) => ({
         id: draft.title, // Using title as ID for drafts since they don't have proper IDs yet
         title: draft.title,
         subject: "Draft", // Mark as draft
-        date: new Date(draft.lastUpdated || Date.now()).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        }),
+        date: new Date(draft.lastUpdated || Date.now()).toLocaleDateString(
+          "en-US",
+          {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          }
+        ),
         status: "draft",
         completion: 0,
         maxMarks: draft.maxMarks || 0,
       }));
-    
+
     return drafts;
   } catch (error) {
     console.error("Error fetching drafts:", error);
@@ -80,12 +86,14 @@ const ClassDetail = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const location = useLocation(); // Get current location
 
   useEffect(() => {
     if (!classId) return;
 
     const fetchClassData = async () => {
       try {
+        console.log("Fetching class data for classId:", classId);
         setIsLoading(true);
         setError(null);
 
@@ -124,6 +132,8 @@ const ClassDetail = () => {
             return { data: { data: [] } };
           });
 
+        console.log("Fetched assignments for class:", assignmentsResponse.data);
+
         // Transform assignment data to match our interface
         const assignments: Assignment[] =
           assignmentsResponse.data.data?.map((assignment: any) => ({
@@ -139,16 +149,25 @@ const ClassDetail = () => {
             }),
             status: assignment.active ? "active" : "completed",
             // Calculate completion based on graded students
-            completion: assignment.students && assignment.students.length > 0
-              ? Math.round((assignment.students.filter((s: any) => s.status === "graded").length / assignment.students.length) * 100)
-              : assignment.active ? 0 : 100,
+            completion:
+              assignment.students && assignment.students.length > 0
+                ? Math.round(
+                    (assignment.students.filter(
+                      (s: any) => s.status === "graded"
+                    ).length /
+                      assignment.students.length) *
+                      100
+                  )
+                : assignment.active
+                ? 0
+                : 100,
             maxMarks: assignment.maxMarks || 0,
           })) || [];
 
         // Get drafts if the user is authenticated
         if (token) {
           const drafts = await fetchDraftAssignments(classId, token);
-          
+
           // Add the drafts to the assignments array
           assignments.push(...drafts);
         }
@@ -178,7 +197,12 @@ const ClassDetail = () => {
     };
 
     fetchClassData();
-  }, [classId, toast]);
+  }, [classId, toast, location.key]); // Add location.key to dependencies to refresh on navigation
+
+  const handleCreateAssignment = () => {
+    // Navigate to the create assignment page for this class
+    navigate(`/class/${classId}/create-assignment`);
+  };
 
   if (isLoading) {
     return <div className="flex justify-center p-6">Loading class data...</div>;
@@ -198,7 +222,7 @@ const ClassDetail = () => {
         variant="ghost"
         size="sm"
         className="flex items-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-        onClick={() => navigate('/dashboard')}
+        onClick={() => navigate("/dashboard")}
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to Dashboard
@@ -217,6 +241,7 @@ const ClassDetail = () => {
           <AssignmentsTab
             classId={classData.id}
             assignments={classData.assignments}
+            onCreateAssignment={handleCreateAssignment}
           />
         </TabsContent>
 

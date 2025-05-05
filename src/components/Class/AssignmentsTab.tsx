@@ -23,11 +23,13 @@ import {
 interface AssignmentsTabProps {
   classId: string;
   assignments: AssignmentSummary[];
+  onCreateAssignment?: () => void;
 }
 
 export const AssignmentsTab = ({
   classId,
   assignments,
+  onCreateAssignment,
 }: AssignmentsTabProps) => {
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
@@ -62,7 +64,20 @@ export const AssignmentsTab = ({
 
   // Function to handle creating a new assignment
   const handleCreateAssignment = () => {
-    navigate(`/class/${classId}/create-assignment`);
+    if (onCreateAssignment) {
+      onCreateAssignment();
+    } else {
+      navigate(`/class/${classId}/create-assignment`);
+    }
+  };
+
+  // Function to handle click on draft assignment
+  const handleDraftClick = (draftTitle: string) => {
+    navigate(
+      `/class/${classId}/create-assignment?draft=${encodeURIComponent(
+        draftTitle
+      )}`
+    );
   };
 
   return (
@@ -118,7 +133,11 @@ export const AssignmentsTab = ({
           >
             {draftAssignments.length > 0 ? (
               draftAssignments.map((assignment) => (
-                <div key={assignment.id} className="w-[270px] flex-shrink-0">
+                <div
+                  key={assignment.id}
+                  className="w-[270px] flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => handleDraftClick(assignment.title)}
+                >
                   <AssignmentCard
                     id={assignment.id}
                     title={assignment.title}
@@ -197,8 +216,8 @@ export const AssignmentsTab = ({
               ))
             ) : (
               <Card className="w-full p-6 text-center text-muted-foreground">
-                {selectedMonth !== "all" 
-                  ? "No assignments found for the selected month" 
+                {selectedMonth !== "all"
+                  ? "No assignments found for the selected month"
                   : "No completed assignments yet"}
               </Card>
             )}

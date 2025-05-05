@@ -795,9 +795,12 @@ const CreateAssignment = () => {
         headers: {
           "Content-Type": "application/json",
           "x-auth-token": token as string,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(assignmentData),
       });
+
+      console.log("Assignment API response status:", response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -808,6 +811,11 @@ const CreateAssignment = () => {
       }
 
       const data = await response.json();
+      console.log("Assignment created successfully:", data);
+
+      if (!data.success) {
+        throw new Error("Backend reported failure in creating assignment");
+      }
 
       // If this was created from a draft, delete the draft
       // Only attempt to delete if the title is a valid non-empty string and we're not editing
@@ -815,33 +823,47 @@ const CreateAssignment = () => {
         try {
           console.log(`Attempting to delete draft with title: "${title}"`);
 
-          // Delete the draft with the same title
-          const deleteUrl = getApiUrl(
-            `/assignments/drafts/${encodeURIComponent(title.trim())}`
-          );
-          console.log(`Sending DELETE request to: ${deleteUrl}`);
-
-          const deleteResponse = await fetch(deleteUrl, {
-            method: "DELETE",
+          // First, fetch all drafts to find the index of the one with matching title
+          const draftsEndpoint = getApiUrl("/assignments/drafts");
+          const draftsResponse = await fetch(draftsEndpoint, {
             headers: {
               "x-auth-token": token as string,
               Authorization: `Bearer ${token}`,
             },
           });
 
-          if (deleteResponse.ok) {
-            console.log(`Successfully deleted draft: "${title}"`);
-          } else {
-            console.log(
-              `Draft deletion returned status: ${deleteResponse.status}`
+          if (draftsResponse.ok) {
+            const draftsData = await draftsResponse.json();
+            const draftIndex = draftsData.drafts.findIndex(
+              (draft: any) => draft.title === title.trim()
             );
-            if (deleteResponse.status === 404) {
-              console.log(
-                "Draft not found, this is normal if it wasn't saved as a draft first"
-              );
+
+            if (draftIndex !== -1) {
+              // Delete the draft with the found index
+              const deleteUrl = getApiUrl(`/assignments/drafts/${draftIndex}`);
+              console.log(`Sending DELETE request to: ${deleteUrl}`);
+
+              const deleteResponse = await fetch(deleteUrl, {
+                method: "DELETE",
+                headers: {
+                  "x-auth-token": token as string,
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+
+              if (deleteResponse.ok) {
+                console.log(`Successfully deleted draft: "${title}"`);
+              } else {
+                console.log(
+                  `Draft deletion returned status: ${deleteResponse.status}`
+                );
+                console.warn(`Failed to delete draft: "${title}"`);
+              }
             } else {
-              console.warn(`Failed to delete draft: "${title}"`);
+              console.log(`No draft found with title: "${title}"`);
             }
+          } else {
+            console.log("Failed to fetch drafts for deletion");
           }
         } catch (error) {
           console.error(
@@ -930,6 +952,7 @@ const CreateAssignment = () => {
         headers: {
           "Content-Type": "application/json",
           "x-auth-token": token as string,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(draftData),
       });
