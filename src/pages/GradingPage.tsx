@@ -212,32 +212,38 @@ const GradingPage = () => {
     }
 
     try {
+      // Show pending status
+      toast({
+        title: "Assigning Student",
+        description: `Assigning ${studentName} to the assignment...`,
+      });
+
+      // Call the API to assign the student
       const response = await assignmentApi.updateStudentAssignment(
         assignmentId,
         studentId,
         { status: "pending" }
       );
 
+      // Check for successful response
       if (response.data.success) {
         toast({
-          title: "Student Assigned",
+          title: "Success",
           description: `${studentName} has been assigned to this assignment`,
         });
 
         // Update the local state to reflect this change
-        setAssignedStudents([...assignedStudents, studentId]);
+        setAssignedStudents((prev) => [...prev, studentId]);
       } else {
-        toast({
-          title: "Assignment Failed",
-          description: response.data.message || "Failed to assign student",
-          variant: "destructive",
-        });
+        throw new Error(response.data.message || "Failed to assign student");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error assigning student:", err);
+
+      // Show error toast
       toast({
         title: "Assignment Failed",
-        description: "There was a problem assigning the student",
+        description: err.message || "There was a problem assigning the student",
         variant: "destructive",
       });
     }
