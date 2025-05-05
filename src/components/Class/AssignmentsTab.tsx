@@ -224,21 +224,6 @@ export const AssignmentsTab = ({
           </div>
         </div>
       </div>
-
-      {assignments.length === 0 && (
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium mb-2">No assignments yet</h3>
-          <p className="text-muted-foreground mb-6">
-            Create your first assignment to get started
-          </p>
-          <Card className="border border-[#EEF9EE] p-6 bg-[#EEF9EE]/30 text-[#58CC02]">
-            <p className="flex items-center justify-center">
-              <PlusCircle className="mr-2 h-5 w-5" />
-              Click the button above to create an assignment
-            </p>
-          </Card>
-        </div>
-      )}
     </div>
   );
 };
