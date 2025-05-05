@@ -6,34 +6,30 @@
 import { aiGradingApi } from "@/lib/api";
 
 /**
- * Extract solutions from a student's submission
- * @param {string} base64Image - Base64-encoded image of student's work
+ * Extract solutions from a student's submission images
+ * @param {string[]} base64Images - Array of Base64-encoded images of student's work
  * @param {Object} assignmentDetails - Details of the assignment
  * @param {string} assignmentDetails.title - Assignment title
  * @param {Array} assignmentDetails.questions - List of questions in the assignment
  * @returns {Object} Extracted student solutions
  */
-export const gradeSubmission = async (base64Image, assignmentDetails) => {
+export const gradeSubmission = async (base64Images, assignmentDetails) => {
   console.log("===== EXTRACTING SOLUTIONS START =====");
   console.log("Processing submission with details:", {
     assignmentTitle: assignmentDetails.title,
     questionsCount: assignmentDetails.questions?.length || 0,
-    imageSize: base64Image ? base64Image.length : 0,
+    imageCount: base64Images?.length || 0,
   });
 
-  if (!base64Image) {
+  if (!base64Images || base64Images.length === 0) {
     console.error("No image data provided");
     throw new Error("No image data provided for processing");
   }
 
   try {
-    // Prepare the request for Gemini API
-    const requestData = {
-      contents: [
-        {
-          parts: [
-            {
-              text: `You are helping to extract student solutions from an answer sheet image.
+    // Prepare the parts for the Gemini API request
+    const promptPart = {
+      text: `You are helping to extract student solutions from answer sheet images.
                 
                 ASSIGNMENT DETAILS:
                 Title: ${assignmentDetails.title || "Math Assessment"}
@@ -51,9 +47,14 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
                 }
                 
                 INSTRUCTIONS:
-                1. Examine the student's answer sheet image
-                2. Only extract the exact written solution for each question
-                3. Return a JSON with the question number and extracted solution text
+                1. Examine ALL the student's answer sheet images thoroughly - ${
+                  base64Images.length
+                } images are provided.
+                2. Extract solutions for EACH question from ANY of the images.
+                3. Make sure to extract solutions for ALL questions listed above.
+                4. If a solution spans across multiple images, combine the information.
+                5. For each question, provide the most complete solution you can find.
+                6. If you cannot find a solution for a question, indicate this explicitly.
                 
                 Please return a JSON response **only** with the following exact structure (no markdown or code fences):
                 {
@@ -61,24 +62,34 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
                     {
                       "questionNumber": number,
                       "extractedSolution": "The extracted solution from student's work"
-                    }
+                    },
+                    ... (repeat for all questions, even if solution not found) ...
                   ]
-                }`,
-            },
-            {
-              inline_data: {
-                mime_type: "image/jpeg",
-                data: base64Image,
-              },
-            },
-          ],
+                }
+
+                IMPORTANT: Return a solution entry for EVERY question, even if you couldn't find the solution in the images.
+                For questions where no solution is visible, set "extractedSolution" to "No solution was found in the submission".`,
+    };
+
+    const imageParts = base64Images.map((imgData) => ({
+      inline_data: {
+        mime_type: "image/jpeg", // Assuming JPEG, adjust if needed
+        data: imgData,
+      },
+    }));
+
+    const requestData = {
+      contents: [
+        {
+          parts: [promptPart, ...imageParts], // Combine prompt and all images
         },
       ],
     };
 
     console.log("Making API call to Gemini with:", {
-      model: "gemini-1.5-flash",
-      promptLength: requestData.contents[0].parts[0].text.length,
+      model: "gemini-1.5-flash", // Reverted model name
+      promptLength: promptPart.text.length,
+      imageCount: imageParts.length,
     });
 
     // Debug check for API key
@@ -95,7 +106,7 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
       console.log("Using API key:", maskedKey);
     }
 
-    // Call the Gemini API - use a model that's stable and available
+    // Call the Gemini API
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
@@ -123,6 +134,9 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
     if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
       let responseText = data.candidates[0].content.parts[0].text;
 
+      // Log the raw Gemini response text for debugging
+      console.log("RAW GEMINI RESPONSE TEXT:\n", responseText);
+
       // Clean up the response text (remove markdown formatting if present)
       responseText = responseText.replace(/```json\s*/g, "");
       responseText = responseText.replace(/```\s*/g, "");
@@ -136,40 +150,40 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
           solutionsCount: extractionResult.questionSolutions?.length || 0,
         });
 
-        // Map question numbers to actual question IDs if available
+        // Ensure we have an entry for every question
         const feedbackData = [];
+        const questionCount = assignmentDetails.questions.length;
 
+        // Create a map of solutions by question number
+        const solutionMap = new Map();
         if (extractionResult.questionSolutions?.length > 0) {
           extractionResult.questionSolutions.forEach((solution) => {
-            const questionNumber = solution.questionNumber;
-            // Find the actual question ID from the assignment details
-            // Adjust for zero-based index in the array vs one-based question numbers
-            const questionIndex = questionNumber - 1;
-            const questionId =
-              assignmentDetails.questions[questionIndex]?._id ||
-              questionNumber.toString();
-
-            feedbackData.push({
-              questionId: questionId,
-              solution: solution.extractedSolution || "No solution extracted",
-            });
+            solutionMap.set(
+              solution.questionNumber,
+              solution.extractedSolution ||
+                "No solution was found in the submission"
+            );
           });
         }
 
-        // If no solutions were extracted, handle this case
-        if (feedbackData.length === 0) {
-          console.warn("No solutions were extracted from the image");
+        // Ensure each question has a solution
+        for (let i = 0; i < questionCount; i++) {
+          const questionNumber = i + 1;
+          const question = assignmentDetails.questions[i];
+          const questionId = question._id || questionNumber.toString();
 
-          // Create default empty solutions for each question
-          assignmentDetails.questions.forEach((question, index) => {
-            feedbackData.push({
-              questionId: question._id || (index + 1).toString(),
-              solution: "No solution could be extracted",
-            });
+          // Get solution from map or use default
+          const solution = solutionMap.has(questionNumber)
+            ? solutionMap.get(questionNumber)
+            : "No solution was found in the submission";
+
+          feedbackData.push({
+            questionId: questionId,
+            solution: solution,
           });
         }
 
-        console.log("Mapped feedback data:", feedbackData);
+        console.log("Complete mapped feedback data:", feedbackData);
         console.log("===== EXTRACTING SOLUTIONS COMPLETE =====");
 
         return {

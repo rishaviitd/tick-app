@@ -8,9 +8,17 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  AlertCircle,
+  FileText,
+  ImageIcon,
+} from "lucide-react";
 import { aiGradingApi, assignmentApi } from "@/lib/api";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface QuestionSolution {
   questionId: string;
@@ -40,6 +48,7 @@ function FeedbackPage() {
   const [assignmentMeta, setAssignmentMeta] = useState<{
     questions: { questionText?: string; text?: string }[];
   } | null>(null);
+  const [activeTab, setActiveTab] = useState("solutions");
 
   useEffect(() => {
     const loadData = async () => {
@@ -119,6 +128,26 @@ function FeedbackPage() {
     );
   }
 
+  // Helper to check if solution text indicates no solution
+  const isMissingSolution = (solution: string) => {
+    const noSolutionPhrases = [
+      "no solution was found",
+      "no solution was extracted",
+      "no solution could be extracted",
+      "failed to extract solution",
+      "error extracting solution",
+    ];
+
+    return (
+      !solution ||
+      solution === "undefined" ||
+      solution === "null" ||
+      noSolutionPhrases.some((phrase) =>
+        solution.toLowerCase().includes(phrase)
+      )
+    );
+  };
+
   return (
     <div className="container mx-auto px-4 space-y-6 py-8 max-w-5xl">
       <div className="flex items-center justify-between">
@@ -137,49 +166,110 @@ function FeedbackPage() {
         </div>
       </div>
 
-      {/* Student Solutions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Student Solutions</CardTitle>
-          <CardDescription>
-            Extracted solutions from the student's submission
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[600px] pr-4">
-            <div className="space-y-6">
-              {solutions.questionResponses.map((question, index) => {
-                return (
-                  <div
-                    key={question.questionId}
-                    className="border rounded-lg p-4"
-                  >
-                    <div className="mb-3">
-                      <h3 className="font-medium text-lg mb-2">
-                        Question {index + 1}
-                      </h3>
-                      <p className="text-sm bg-muted p-2 rounded-md">
-                        {question.questionText}
-                      </p>
-                    </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="solutions">Extracted Solutions</TabsTrigger>
+          <TabsTrigger value="submissions">Original Submissions</TabsTrigger>
+        </TabsList>
 
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">
-                        Student's Solution
-                      </h4>
-                      <p className="text-sm bg-slate-50 p-2 rounded-md whitespace-pre-wrap">
-                        {question.solution && question.solution !== "pending"
-                          ? question.solution
-                          : "No solution was extracted from the submission"}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
+        <TabsContent value="solutions">
+          <Card>
+            <CardHeader>
+              <CardTitle>Student Solutions</CardTitle>
+              <CardDescription>
+                Extracted solutions from the student's submission
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[600px] pr-4">
+                <div className="space-y-6">
+                  {solutions.questionResponses.map((question, index) => {
+                    const hasSolution = !isMissingSolution(question.solution);
+
+                    return (
+                      <div
+                        key={question.questionId}
+                        className="border rounded-lg p-4"
+                      >
+                        <div className="mb-3">
+                          <h3 className="font-medium text-lg mb-2">
+                            Question {index + 1}
+                          </h3>
+                          <p className="text-sm bg-muted p-2 rounded-md">
+                            {question.questionText}
+                          </p>
+                        </div>
+
+                        <div>
+                          <h4 className="text-sm font-medium mb-1 flex items-center">
+                            <FileText className="h-4 w-4 mr-1" />
+                            Student's Solution
+                          </h4>
+                          {hasSolution ? (
+                            <p className="text-sm bg-slate-50 p-2 rounded-md whitespace-pre-wrap">
+                              {question.solution}
+                            </p>
+                          ) : (
+                            <div className="text-sm bg-slate-50 p-3 rounded-md text-center text-muted-foreground">
+                              <p>
+                                No solution was extracted from the submission
+                              </p>
+                              <p className="text-xs mt-1">
+                                Try viewing the original submission images
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="submissions">
+          <Card>
+            <CardHeader>
+              <CardTitle>Original Submission</CardTitle>
+              <CardDescription>
+                View the student's submitted answer sheets
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center p-8 border rounded-md bg-slate-50">
+                <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                <p className="text-muted-foreground">
+                  This is where the original submission images would be
+                  displayed.
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  The image viewing feature is currently under development.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <div className="mt-4">
+        <Separator className="my-4" />
+        <div className="flex justify-between items-center">
+          <p className="text-sm text-muted-foreground">
+            Submission date:{" "}
+            {solutions.submissionDate
+              ? new Date(solutions.submissionDate).toLocaleString()
+              : "Not available"}
+          </p>
+          <p className="text-sm">
+            Status:{" "}
+            <span className="text-blue-600 font-medium">
+              {solutions.status}
+            </span>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

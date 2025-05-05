@@ -34,7 +34,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AssignmentDetail, StudentAssignment } from "@/types/class";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -54,6 +53,7 @@ import {
   gradeSubmission,
   updateGradingStatus,
 } from "@/service/aiGradingService";
+import { AssignmentDetail, StudentAssignment } from "@/types/class";
 
 const AssignmentDetailPage = () => {
   const { assignmentId } = useParams<{ assignmentId: string }>();
@@ -74,7 +74,11 @@ const AssignmentDetailPage = () => {
   const [assigningStudent, setAssigningStudent] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-  const [studentToReset, setStudentToReset] = useState<{ id: string, name: string } | null>(null);
+  const [studentToReset, setStudentToReset] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Helper to test Gemini API connection
   const testGeminiApi = async () => {
@@ -125,18 +129,14 @@ const AssignmentDetailPage = () => {
   };
 
   // Helper to convert a File to base64 string
-  const fileToBase64 = (file: File): Promise<string> =>
+  const fileToBase64 = (file: File): Promise<string | null> =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => {
-        const result = reader.result;
-        if (typeof result === "string") {
-          const base64 = result.split(",")[1];
-          resolve(base64);
-        } else {
-          reject(new Error("Failed to read file as base64"));
-        }
+        const result = reader.result as string;
+        const base64 = result.split(",")[1];
+        resolve(base64);
       };
       reader.onerror = (error) => reject(error);
     });
@@ -215,21 +215,21 @@ const AssignmentDetailPage = () => {
           // Also include students with pending status from our assignment
           if (assignment && assignment.students) {
             const pendingStudents = assignment.students
-              .filter(s => s.status === "pending")
-              .map(s => ({
+              .filter((s) => s.status === "pending")
+              .map((s) => ({
                 id: s.studentId,
-                name: s.studentName
+                name: s.studentName,
               }));
-            
+
             // Combine and remove duplicates
             const combinedStudents = [...students];
-            
-            pendingStudents.forEach(pendingStudent => {
-              if (!combinedStudents.some(s => s.id === pendingStudent.id)) {
+
+            pendingStudents.forEach((pendingStudent) => {
+              if (!combinedStudents.some((s) => s.id === pendingStudent.id)) {
                 combinedStudents.push(pendingStudent);
               }
             });
-            
+
             console.log("Available students to display:", combinedStudents);
             setAvailableStudents(combinedStudents);
           } else {
@@ -545,29 +545,37 @@ const AssignmentDetailPage = () => {
   // Modify handleAssignStudent to include assignment details with grading
   const handleAssignStudent = async (
     studentId: string,
-    studentName: string
+    studentName: string,
+    uploadedFiles: File[]
   ) => {
-    if (!assignmentId || !assignment) return;
-
-    // Check if files have been uploaded
+    if (!assignmentId || !assignment) {
+      toast({
+        title: "Error",
+        description: "Assignment details not loaded.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (uploadedFiles.length === 0) {
       toast({
-        title: "No Files Uploaded",
-        description:
-          "Please upload answer sheets first before assigning students",
+        title: "No Files",
+        description: "Please upload submission files first.",
         variant: "destructive",
       });
       return;
     }
 
-    setAssigningStudent(studentId);
+    setIsProcessing(true);
+    toast({
+      title: "Processing Submission",
+      description: `Assigning ${studentName} and starting solution extraction...`,
+    });
 
     try {
-      // 1. Mark student as processing
+      // 1. Update student status to 'processing'
       await assignmentApi.updateStudentAssignment(assignmentId, studentId, {
-        status: "processing" as const,
+        status: "processing",
       });
-      // Update UI status
       setAssignment(
         (prev) =>
           prev && {
@@ -580,121 +588,114 @@ const AssignmentDetailPage = () => {
           }
       );
 
-      // Remove student from available students list
-      setAvailableStudents(prevStudents => 
-        prevStudents.filter(s => s.id !== studentId)
-      );
+      // 2. Collect all Base64 image data
+      const base64Images: string[] = [];
+      for (const file of uploadedFiles) {
+        try {
+          const base64Data = await fileToBase64(file);
+          if (base64Data) {
+            base64Images.push(base64Data);
+          }
+        } catch (err) {
+          console.error(`Error converting file ${file.name} to base64:`, err);
+          toast({
+            title: "File Conversion Error",
+            description: `Could not process file ${file.name}. Skipping.`,
+            variant: "destructive",
+          });
+        }
+      }
 
-      // Prepare grading details
+      if (base64Images.length === 0) {
+        throw new Error("No files could be converted for processing.");
+      }
+
+      // 3. Prepare grading details
       const gradingDetails = {
         title: assignment.title,
         maxMarks: assignment.maxMarks,
-        rubric: assignment.rubric || "",
-        questions: assignment.questions || [],
+        questions: assignment.questions,
       };
 
-      console.log("DEBUG GRADING: Assignment details being sent to grading service:", {
-        title: assignment.title,
+      console.log("DEBUG: About to call gradeSubmission with:", {
+        imageCount: base64Images.length,
+        assignmentTitle: assignment.title,
         maxMarks: assignment.maxMarks,
-        questionsCount: assignment.questions?.length || 0
+        hasQuestions: Array.isArray(assignment.questions),
+        questionsCount: Array.isArray(assignment.questions)
+          ? assignment.questions.length
+          : 0,
       });
 
-      // 2. Sequentially process each uploaded file
-      for (const file of uploadedFiles) {
-        try {
-          // a) Upload file
-          const formData = new FormData();
-          formData.append("submissionFile", file);
-          const uploadResp = await aiGradingApi.uploadSubmission(
-            assignmentId,
-            studentId,
-            formData
-          );
-          if (!uploadResp.data?.success) throw new Error("Upload failed");
+      // 4. Call gradeSubmission ONCE with all images
+      const extractionResult = await gradeSubmission(
+        base64Images, // Pass array of images
+        gradingDetails
+      );
 
-          // b) Convert to base64
-          const base64Data = await fileToBase64(file);
-
-          console.log("DEBUG: About to call gradeSubmission with:", {
-            base64Length: base64Data ? base64Data.length : 0,
-            assignmentTitle: assignment.title,
-            maxMarks: assignment.maxMarks,
-            hasQuestions: Array.isArray(assignment.questions),
-            questionsCount: Array.isArray(assignment.questions)
-              ? assignment.questions.length
-              : 0,
-          });
-
-          // c) Grade submission via Gemini API
-          const gradingResult = await gradeSubmission(
-            base64Data,
-            gradingDetails
-          );
-          if (!gradingResult.success) throw new Error("Grading API error");
-
-          // d) Update backend with grades
-          await updateGradingStatus(
-            assignmentId,
-            studentId,
-            gradingResult.feedback
-          );
-
-          // e) Update UI to show graded status and score
-          setAssignment(
-            (prev) =>
-              prev && {
-                ...prev,
-                students: prev.students.map((s) =>
-                  s.studentId === studentId
-                    ? {
-                        ...s,
-                        status: "graded" as const,
-                        score: gradingResult.score,
-                      }
-                    : s
-                ),
-              }
-          );
-          toast({
-            title: "Grading Complete",
-            description: `${studentName} scored ${gradingResult.score}/${assignment.maxMarks}`,
-          });
-          // Exit after first successful grading (one sheet per student)
-          break;
-        } catch (err) {
-          console.error(`Error grading ${studentName}:`, err);
-          // Mark as failed
-          await assignmentApi.updateStudentAssignment(assignmentId, studentId, {
-            status: "failed" as const,
-          });
-          setAssignment(
-            (prev) =>
-              prev && {
-                ...prev,
-                students: prev.students.map((s) =>
-                  s.studentId === studentId
-                    ? { ...s, status: "failed" as const }
-                    : s
-                ),
-              }
-          );
-          toast({
-            title: "Grading Failed",
-            description: `Failed to grade ${studentName}.`,
-            variant: "destructive",
-          });
-          break;
-        }
+      if (!extractionResult || !extractionResult.feedbackData) {
+        // Use error message from service if available
+        throw new Error(
+          extractionResult?.error ||
+            "Solution extraction failed. No feedback data received."
+        );
       }
-    } catch (err) {
-      console.error("Error assigning student:", err);
+
+      // 5. Update backend ONCE with extracted solutions
+      const updateResult = await updateGradingStatus(
+        assignmentId,
+        studentId,
+        extractionResult // Pass the whole result object
+      );
+
+      if (!updateResult.success) {
+        throw new Error(
+          updateResult.message || "Failed to update grading status."
+        );
+      }
+
+      // 6. Update UI to show completed status
+      setAssignment(
+        (prev) =>
+          prev && {
+            ...prev,
+            students: prev.students.map((s) =>
+              s.studentId === studentId
+                ? {
+                    ...s,
+                    status: "completed" as const, // Now valid
+                    score: undefined, // Remove score as we are not grading
+                  }
+                : s
+            ),
+          }
+      );
+
       toast({
-        title: "Assignment Failed",
-        description: "There was a problem assigning the student",
+        title: "Processing Complete",
+        description: `${studentName}'s submission has been processed.`,
+      });
+    } catch (error: any) {
+      console.error("Error processing submission:", error);
+      toast({
+        title: "Processing Failed",
+        description: error.message || "An unexpected error occurred.",
         variant: "destructive",
       });
+      // Optionally revert status back to pending or failed
+      setAssignment(
+        (prev) =>
+          prev && {
+            ...prev,
+            students: prev.students.map((s) =>
+              s.studentId === studentId
+                ? { ...s, status: "failed" as const }
+                : s
+            ),
+          }
+      );
     } finally {
-      setAssigningStudent(null);
+      setIsProcessing(false);
     }
   };
 
@@ -761,8 +762,8 @@ const AssignmentDetailPage = () => {
         if (assignment) {
           const updatedStudents = assignment.students.map((s) => {
             if (s.studentId === studentId) {
-              return { 
-                ...s, 
+              return {
+                ...s,
                 status: "pending" as const,
                 score: undefined, // Remove score when resetting
               };
@@ -771,20 +772,23 @@ const AssignmentDetailPage = () => {
           });
 
           setAssignment({ ...assignment, students: updatedStudents });
-          
+
           // Add the student to the available students list
-          const studentExists = availableStudents.some(s => s.id === studentId);
+          const studentExists = availableStudents.some(
+            (s) => s.id === studentId
+          );
           if (!studentExists) {
-            setAvailableStudents(prev => [
-              ...prev, 
-              { id: studentId, name: studentName }
+            setAvailableStudents((prev) => [
+              ...prev,
+              { id: studentId, name: studentName },
             ]);
           }
         }
       } else {
         toast({
           title: "Reset Failed",
-          description: response.data.message || "Failed to reset grading status",
+          description:
+            response.data.message || "Failed to reset grading status",
           variant: "destructive",
         });
       }
@@ -850,11 +854,10 @@ const AssignmentDetailPage = () => {
   ).length;
 
   const totalStudents = assignment.students.length;
-  
+
   // Recalculate completion percentage based on graded students
-  const completionPercentage = totalStudents > 0 
-    ? Math.round((gradedCount / totalStudents) * 100)
-    : 0;
+  const completionPercentage =
+    totalStudents > 0 ? Math.round((gradedCount / totalStudents) * 100) : 0;
 
   return (
     <div className="container mx-auto px-4 space-y-6 pb-8 max-w-5xl">
@@ -876,28 +879,30 @@ const AssignmentDetailPage = () => {
             {assignment.title}
           </h1>
 
-          <p className="text-sm text-muted-foreground mt-1">{assignment.maxMarks} marks</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {assignment.maxMarks} marks
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleEditAssignment}
             className="hover:bg-gray-50 transition-colors"
           >
             <Edit className="mr-2 h-4 w-4" />
             Edit Assignment
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleShareResults}
             className="hover:bg-gray-50 transition-colors"
           >
             <Share2 className="mr-2 h-4 w-4" />
             Share Results
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             asChild
             className="hover:bg-gray-50 transition-colors"
           >
@@ -1053,11 +1058,15 @@ const AssignmentDetailPage = () => {
                                   size="sm"
                                   variant="outline"
                                   onClick={() =>
-                                    handleAssignStudent(student.id, student.name)
+                                    handleAssignStudent(
+                                      student.id,
+                                      student.name,
+                                      uploadedFiles
+                                    )
                                   }
-                                  disabled={assigningStudent === student.id}
+                                  disabled={isProcessing}
                                 >
-                                  {assigningStudent === student.id ? (
+                                  {isProcessing ? (
                                     <>
                                       <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                                       Assigning...
@@ -1121,7 +1130,9 @@ const AssignmentDetailPage = () => {
                             <TableHead>Student</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Score</TableHead>
-                            <TableHead className="text-right">Feedback</TableHead>
+                            <TableHead className="text-right">
+                              Feedback
+                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1153,7 +1164,12 @@ const AssignmentDetailPage = () => {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => openResetConfirmation(student.studentId, student.studentName)}
+                                      onClick={() =>
+                                        openResetConfirmation(
+                                          student.studentId,
+                                          student.studentName
+                                        )
+                                      }
                                       className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 px-2 h-7"
                                     >
                                       <RotateCcw size={12} className="mr-1" />
@@ -1183,7 +1199,9 @@ const AssignmentDetailPage = () => {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => handleRetryGrading(student.studentId)}
+                                        onClick={() =>
+                                          handleRetryGrading(student.studentId)
+                                        }
                                         className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 h-7"
                                       >
                                         <RotateCcw size={12} className="mr-1" />
@@ -1192,7 +1210,12 @@ const AssignmentDetailPage = () => {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => openResetConfirmation(student.studentId, student.studentName)}
+                                        onClick={() =>
+                                          openResetConfirmation(
+                                            student.studentId,
+                                            student.studentName
+                                          )
+                                        }
                                         className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 px-2 h-7"
                                       >
                                         <RotateCcw size={12} className="mr-1" />
@@ -1213,7 +1236,8 @@ const AssignmentDetailPage = () => {
                                   : "-"}
                               </TableCell>
                               <TableCell className="text-right">
-                                {student.status === "graded" && (
+                                {(student.status === "graded" ||
+                                  student.status === "completed") && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -1249,21 +1273,25 @@ const AssignmentDetailPage = () => {
               Are you sure you want to reset grading for {studentToReset?.name}?
               <br />
               <span className="block mt-2">
-                This will move them back to pending status and allow reassignment.
+                This will move them back to pending status and allow
+                reassignment.
               </span>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setResetConfirmOpen(false)}
               className="hover:bg-gray-50 transition-colors"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               className="bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200"
-              onClick={() => studentToReset && handleResetGrading(studentToReset.id, studentToReset.name)}
+              onClick={() =>
+                studentToReset &&
+                handleResetGrading(studentToReset.id, studentToReset.name)
+              }
             >
               Yes, Reset
             </Button>

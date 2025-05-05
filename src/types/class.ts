@@ -46,7 +46,13 @@ export interface AssignmentDetail extends AssignmentSummary {
 export interface StudentAssignment {
   studentId: string;
   studentName: string;
-  status: "pending" | "submitted" | "processing" | "graded" | "failed";
+  status:
+    | "pending"
+    | "submitted"
+    | "processing"
+    | "completed"
+    | "graded"
+    | "failed";
   score?: number;
   submissionDate?: string;
   submissionUrl?: string;
