@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { classApi, assignmentApi } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 interface Student {
   id: string;
@@ -39,6 +40,7 @@ const GradingPage = () => {
   const [assignedStudents, setAssignedStudents] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { isAuthenticated, token } = useAuth();
 
   // Fetch students from the class
   useEffect(() => {
@@ -211,41 +213,83 @@ const GradingPage = () => {
       return;
     }
 
-    try {
-      // Show pending status
+    // Check if user is authenticated
+    if (!isAuthenticated) {
       toast({
-        title: "Assigning Student",
-        description: `Assigning ${studentName} to the assignment...`,
+        title: "Authentication Required",
+        description: "Please log in to assign students",
+        variant: "destructive",
       });
 
-      // Call the API to assign the student
+      // Redirect to login page instead of using the login function
+      window.location.href = "/login";
+      return;
+    }
+
+    try {
+      // Get the authentication token
+      if (!token) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to assign students",
+          variant: "destructive",
+        });
+        window.location.href = "/login";
+        return;
+      }
+
       const response = await assignmentApi.updateStudentAssignment(
         assignmentId,
         studentId,
         { status: "pending" }
       );
 
-      // Check for successful response
       if (response.data.success) {
         toast({
-          title: "Success",
+          title: "Student Assigned",
           description: `${studentName} has been assigned to this assignment`,
         });
 
         // Update the local state to reflect this change
-        setAssignedStudents((prev) => [...prev, studentId]);
+        setAssignedStudents([...assignedStudents, studentId]);
       } else {
-        throw new Error(response.data.message || "Failed to assign student");
+        // Handle specific error codes
+        if (response.data.code === "NO_TOKEN") {
+          toast({
+            title: "Session Expired",
+            description: "Your session has expired. Please log in again.",
+            variant: "destructive",
+          });
+          window.location.href = "/login";
+        } else {
+          toast({
+            title: "Assignment Failed",
+            description: response.data.message || "Failed to assign student",
+            variant: "destructive",
+          });
+        }
       }
     } catch (err: any) {
       console.error("Error assigning student:", err);
 
-      // Show error toast
-      toast({
-        title: "Assignment Failed",
-        description: err.message || "There was a problem assigning the student",
-        variant: "destructive",
-      });
+      // Check if this is an auth error
+      if (
+        err.response &&
+        (err.response.status === 401 || err.response.status === 403)
+      ) {
+        toast({
+          title: "Authentication Failed",
+          description: "Please log in to assign students",
+          variant: "destructive",
+        });
+        window.location.href = "/login";
+      } else {
+        toast({
+          title: "Assignment Failed",
+          description: "There was a problem assigning the student",
+          variant: "destructive",
+        });
+      }
     }
   };
 

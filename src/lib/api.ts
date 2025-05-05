@@ -43,8 +43,17 @@ apiClient.interceptors.response.use(
   }
 );
 
+// Helper to set token explicitly
+const setAuthToken = (token: string) => {
+  localStorage.setItem("token", token);
+  apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
+};
+
 // Assignment API endpoints
 export const assignmentApi = {
+  // Set auth token explicitly
+  setAuthToken,
+
   // Get all assignments
   getAll: () => apiClient.get("/assignments"),
 
@@ -84,6 +93,9 @@ export const assignmentApi = {
 
 // Class API endpoints
 export const classApi = {
+  // Set auth token explicitly
+  setAuthToken,
+
   getAll: () => apiClient.get("/classes"),
   getStudents: (classId: string) =>
     apiClient.get("/classes/students", {
@@ -95,12 +107,18 @@ export const classApi = {
 
 // Student API endpoints
 export const studentApi = {
+  // Set auth token explicitly
+  setAuthToken,
+
   getAll: () => apiClient.get("/students"),
   getDetails: (studentId: string) => apiClient.get(`/students/${studentId}`),
 };
 
 // AI Grading API endpoints
 export const aiGradingApi = {
+  // Set auth token explicitly
+  setAuthToken,
+
   // Start the grading process
   startGrading: (
     assignmentId: string,
