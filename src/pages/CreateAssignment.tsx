@@ -937,6 +937,7 @@ const CreateAssignment = () => {
           points: q.maxMarks || 0,
           rubric: q.rubric || questionRubrics[q.id] || "",
         })),
+        classId: classId,
       };
 
       console.log("Sending draft data:", draftData);
@@ -1063,6 +1064,15 @@ const CreateAssignment = () => {
       // Update the form with the draft data
       setTitle(draft.title);
       setMaxMarks(draft.maxMarks.toString());
+
+      // Check if draft belongs to a different class
+      if (draft.classId && classId && draft.classId !== classId) {
+        toast({
+          title: "Draft from different class",
+          description: "This draft was created for a different class.",
+          variant: "destructive",
+        });
+      }
 
       // Format the questions for the UI
       const formattedExtractedQuestions = draft.questions.map((q) => ({

@@ -28,6 +28,7 @@ interface Assignment {
   status: "draft" | "active" | "completed";
   completion: number;
   maxMarks?: number;
+  classId?: string;
 }
 
 const fetchDraftAssignments = async (
@@ -47,10 +48,9 @@ const fetchDraftAssignments = async (
     });
 
     // Transform draft data to match our interface and filter by classId
-    // We'll check if the draft has a classId property and if it matches the current class
     const drafts: Assignment[] = (draftsResponse.data.drafts || [])
       .filter((draft: any) => {
-        // Include all drafts if they don't have a classId
+        // Include drafts that have no classId or matching classId with current class
         return !draft.classId || draft.classId === classId;
       })
       .map((draft: any) => ({
@@ -68,8 +68,10 @@ const fetchDraftAssignments = async (
         status: "draft",
         completion: 0,
         maxMarks: draft.maxMarks || 0,
+        classId: draft.classId, // Store classId with the assignment
       }));
 
+    console.log(`Filtered drafts by classId ${classId}:`, drafts.length);
     return drafts;
   } catch (error) {
     console.error("Error fetching drafts:", error);
