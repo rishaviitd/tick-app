@@ -13,6 +13,7 @@ import { aiGradingApi } from "@/lib/api";
  * @param {Array} assignmentDetails.questions - List of questions in the assignment
  * @returns {Object} Extracted student solutions
  */
+
 export const gradeSubmission = async (base64Images, assignmentDetails) => {
   console.log("===== EXTRACTING SOLUTIONS START =====");
   console.log("Processing submission with details:", {

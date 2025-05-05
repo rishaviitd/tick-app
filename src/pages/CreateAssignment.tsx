@@ -351,7 +351,9 @@ const CreateAssignment = () => {
   >({});
   const [isEditing, setIsEditing] = useState<Record<string, boolean>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [changedQuestions, setChangedQuestions] = useState<Record<string, boolean>>({});
+  const [changedQuestions, setChangedQuestions] = useState<
+    Record<string, boolean>
+  >({});
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -369,61 +371,63 @@ const CreateAssignment = () => {
       const fetchAssignmentForEdit = async () => {
         try {
           const token = authToken;
-          
+
           // Use the full API URL with assignments endpoint
           const assignmentEndpoint = getApiUrl(`/assignments/${editId}`);
-          
+
           const response = await fetch(assignmentEndpoint, {
             headers: {
               "x-auth-token": token as string,
               Authorization: `Bearer ${token}`,
             },
           });
-          
+
           if (!response.ok) {
             throw new Error("Failed to fetch assignment details");
           }
-          
+
           const data = await response.json();
-          
+
           if (data.success && data.data) {
             const assignmentData = data.data;
-            
+
             // Set the assignment title and marks
             setTitle(assignmentData.title);
             setMaxMarks(assignmentData.maxMarks.toString());
-            
+
             // Format the questions for the UI
-            const formattedQuestions = assignmentData.questions.map((q: any, index: number) => {
-              const id = crypto.randomUUID();
-              
-              // Store rubric if it exists
-              if (q.rubric) {
-                setQuestionRubrics(prev => ({
-                  ...prev,
-                  [id]: q.rubric
-                }));
+            const formattedQuestions = assignmentData.questions.map(
+              (q: any, index: number) => {
+                const id = crypto.randomUUID();
+
+                // Store rubric if it exists
+                if (q.rubric) {
+                  setQuestionRubrics((prev) => ({
+                    ...prev,
+                    [id]: q.rubric,
+                  }));
+                }
+
+                return {
+                  id,
+                  questionText: q.text || q.questionText,
+                  maxMarks: q.maxMarks || q.points || 0,
+                  order: index + 1,
+                  rubric: q.rubric || "",
+                };
               }
-              
-              return {
-                id,
-                questionText: q.text || q.questionText,
-                maxMarks: q.maxMarks || q.points || 0,
-                order: index + 1,
-                rubric: q.rubric || "",
-              };
-            });
-            
+            );
+
             // Setup extracted questions format for display
-            const extractedQuestionsFormat = formattedQuestions.map(q => ({
+            const extractedQuestionsFormat = formattedQuestions.map((q) => ({
               text: q.questionText,
               points: q.maxMarks,
-              sourceFile: "imported" // Indicate this came from an existing assignment
+              sourceFile: "imported", // Indicate this came from an existing assignment
             }));
-            
+
             setQuestions(formattedQuestions);
             setExtractedQuestions(extractedQuestionsFormat);
-            
+
             toast({
               title: "Assignment Loaded",
               description: "You can now edit the assignment details.",
@@ -435,12 +439,13 @@ const CreateAssignment = () => {
           console.error("Error fetching assignment for edit:", error);
           toast({
             title: "Error Loading Assignment",
-            description: error.message || "Failed to load assignment for editing.",
+            description:
+              error.message || "Failed to load assignment for editing.",
             variant: "destructive",
           });
         }
       };
-      
+
       fetchAssignmentForEdit();
     }
   }, [location, isAuthenticated, authToken, toast]);
@@ -455,33 +460,33 @@ const CreateAssignment = () => {
       const loadDraftByTitle = async () => {
         try {
           const token = authToken;
-          
+
           // Use the full API URL with drafts endpoint
           const draftsEndpoint = getApiUrl("/assignments/drafts");
-          
+
           const response = await fetch(draftsEndpoint, {
             headers: {
               "x-auth-token": token as string,
               Authorization: `Bearer ${token}`,
             },
           });
-          
+
           if (!response.ok) {
             throw new Error("Failed to fetch drafts");
           }
-          
+
           const data = await response.json();
-          
+
           // Find the draft with matching title
           const draft = data.drafts.find((d: any) => d.title === draftTitle);
-          
+
           if (draft) {
             // Convert draft to use our expected format with an ID property
             const draftWithId = { ...draft, id: data.drafts.indexOf(draft) };
-            
+
             // Load this draft
             await loadDraft(draftWithId.id);
-            
+
             toast({
               title: "Draft Loaded",
               description: `Draft "${draftTitle}" loaded successfully`,
@@ -497,12 +502,13 @@ const CreateAssignment = () => {
           console.error("Error loading draft by title:", error);
           toast({
             title: "Error Loading Draft",
-            description: error.message || "Failed to load draft. Please try again.",
+            description:
+              error.message || "Failed to load draft. Please try again.",
             variant: "destructive",
           });
         }
       };
-      
+
       loadDraftByTitle();
     }
   }, [location.search, isAuthenticated, authToken]);
@@ -763,22 +769,25 @@ const CreateAssignment = () => {
         title,
         maxMarks: calculatedMaxMarks,
         questions: questions.map((q) => ({
-          text: q.questionText || "", 
+          text: q.questionText || "",
           maxMarks: q.maxMarks || 0,
-          rubric: q.rubric || (q.id && questionRubrics[q.id]) || "", 
+          rubric: q.rubric || (q.id && questionRubrics[q.id]) || "",
         })),
-        active: true, 
-        classId: classId, 
+        active: true,
+        classId: classId,
       };
 
       // Determine endpoint and HTTP method based on operation
-      const assignmentEndpoint = isEditing 
-        ? getApiUrl(`/assignments/${editId}`) 
+      const assignmentEndpoint = isEditing
+        ? getApiUrl(`/assignments/${editId}`)
         : getApiUrl("/assignments");
-      
+
       const httpMethod = isEditing ? "PUT" : "POST";
-      
-      console.log(`${isEditing ? "Updating" : "Creating"} assignment at:`, assignmentEndpoint);
+
+      console.log(
+        `${isEditing ? "Updating" : "Creating"} assignment at:`,
+        assignmentEndpoint
+      );
 
       // Call the API to create/update the assignment
       const response = await fetch(assignmentEndpoint, {
@@ -792,7 +801,10 @@ const CreateAssignment = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to ${isEditing ? "update" : "create"} assignment`);
+        throw new Error(
+          errorData.message ||
+            `Failed to ${isEditing ? "update" : "create"} assignment`
+        );
       }
 
       const data = await response.json();
@@ -813,6 +825,7 @@ const CreateAssignment = () => {
             method: "DELETE",
             headers: {
               "x-auth-token": token as string,
+              Authorization: `Bearer ${token}`,
             },
           });
 
@@ -841,7 +854,7 @@ const CreateAssignment = () => {
 
       toast({
         title: isEditing ? "Assignment Updated" : "Assignment Created",
-        description: isEditing 
+        description: isEditing
           ? "The assignment has been updated successfully."
           : "The assignment has been created and activated successfully.",
       });
@@ -853,16 +866,22 @@ const CreateAssignment = () => {
         // If we were editing, navigate back to the assignment detail
         if (isEditing) {
           navigate(`/assignment/${editId}`);
-      } else {
-        navigate("/dashboard");
+        } else {
+          navigate("/dashboard");
         }
       }
     } catch (error) {
-      console.error(`Error ${isEditing ? "updating" : "creating"} assignment:`, error);
+      console.error(
+        `Error ${isEditing ? "updating" : "creating"} assignment:`,
+        error
+      );
       toast({
         title: isEditing ? "Update Failed" : "Creation Failed",
         description:
-          error.message || `Failed to ${isEditing ? "update" : "create"} assignment. Please try again.`,
+          error.message ||
+          `Failed to ${
+            isEditing ? "update" : "create"
+          } assignment. Please try again.`,
         variant: "destructive",
       });
     }
@@ -1128,14 +1147,14 @@ const CreateAssignment = () => {
   };
 
   const updateQuestionMarks = (questionId: string, marks: number) => {
-    handleQuestionChange(questionId, 'maxMarks', marks);
-    setIsEditing(prev => ({ ...prev, [questionId]: true }));
+    handleQuestionChange(questionId, "maxMarks", marks);
+    setIsEditing((prev) => ({ ...prev, [questionId]: true }));
     setHasUnsavedChanges(true);
   };
 
   const updateQuestionText = (questionId: string, text: string) => {
-    handleQuestionChange(questionId, 'questionText', text);
-    setIsEditing(prev => ({ ...prev, [questionId]: true }));
+    handleQuestionChange(questionId, "questionText", text);
+    setIsEditing((prev) => ({ ...prev, [questionId]: true }));
     setHasUnsavedChanges(true);
   };
 
@@ -1145,7 +1164,7 @@ const CreateAssignment = () => {
     setQuestions((prev) =>
       prev.map((q) => (q.id === questionId ? { ...q, rubric } : q))
     );
-    setIsEditing(prev => ({ ...prev, [questionId]: true }));
+    setIsEditing((prev) => ({ ...prev, [questionId]: true }));
     setHasUnsavedChanges(true);
   };
 
@@ -1163,12 +1182,15 @@ const CreateAssignment = () => {
   };
 
   // Determine if all questions have rubrics defined
-  const allRubricsFilled = questions.length > 0 && questions.every(q => !!questionRubrics[q.id]);
+  const allRubricsFilled =
+    questions.length > 0 && questions.every((q) => !!questionRubrics[q.id]);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-800">Create Assignment</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-800">
+          Create Assignment
+        </h1>
         <div className="flex gap-2">
           {!isLoading && !isAuthenticated && (
             <Button
@@ -1197,28 +1219,32 @@ const CreateAssignment = () => {
         onClick={() => {
           // Check the source context to determine where to navigate back to
           const params = new URLSearchParams(location.search);
-          const editId = params.get('edit');
-          const draftParam = params.get('draft');
-          
+          const editId = params.get("edit");
+          const draftParam = params.get("draft");
+
           if (editId) {
             // If editing an existing assignment, go back to that assignment detail
             navigate(`/assignment/${editId}`);
           } else if (draftParam) {
             // If working on a draft, go back to dashboard
-            navigate('/dashboard');
+            navigate("/dashboard");
           } else if (classId) {
             // If associated with a class, go back to class page
             navigate(`/class/${classId}`);
           } else {
             // Default fallback
-            navigate('/dashboard');
+            navigate("/dashboard");
           }
         }}
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
-        {location.search.includes('edit=') ? "Back to Assignment" : 
-         location.search.includes('draft=') ? "Back to Dashboard" : 
-         classId ? "Back to Class" : "Back to Dashboard"}
+        {location.search.includes("edit=")
+          ? "Back to Assignment"
+          : location.search.includes("draft=")
+          ? "Back to Dashboard"
+          : classId
+          ? "Back to Class"
+          : "Back to Dashboard"}
       </Button>
 
       {/* Title Input Dialog */}
@@ -1333,114 +1359,113 @@ const CreateAssignment = () => {
 
         <TabsContent value="questions" className="space-y-4">
           {extractedQuestions.length === 0 && (
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center space-y-4">
-                {!uploadedImages.length ? (
-                  <>
-                    <FileUp
-                      size={40}
-                      className="mx-auto text-muted-foreground"
-                    />
-                    <div>
-                      <p className="font-medium">
-                        Upload and Extract Questions using AI
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Upload images of your question paper for analysis
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-center gap-3">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleImageUpload}
-                        accept="image/*"
-                        multiple
-                        className="hidden"
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center space-y-4">
+                  {!uploadedImages.length ? (
+                    <>
+                      <FileUp
+                        size={40}
+                        className="mx-auto text-muted-foreground"
                       />
-                      <Button
-                        onClick={() => fileInputRef.current?.click()}
-                        variant="outline"
+                      <div>
+                        <p className="font-medium">
+                          Upload and Extract Questions using AI
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Upload images of your question paper for analysis
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-center gap-3">
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleImageUpload}
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                        />
+                        <Button
+                          onClick={() => fileInputRef.current?.click()}
+                          variant="outline"
                           className="w-full max-w-xs bg-[#58CC02] hover:bg-[#51AA02] text-white"
-                      >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Question Paper
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-center mb-4">
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload Question Paper
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-center mb-4">
                         <FileText size={40} className="text-[#58CC02]" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Question Paper Uploaded</p>
-                      <div className="mt-2 space-y-1">
-                        {uploadedImages.map((file, index) => (
-                          <p
-                            key={index}
-                            className="text-sm text-muted-foreground"
-                          >
-                            {file.name} ({(file.size / 1024).toFixed(1)} KB)
-                            {fileStatus[file.name] && (
-                              <span
-                                className={`ml-2 ${
-                                  fileStatus[file.name].status === "completed"
-                                    ? "text-green-500"
+                      </div>
+                      <div>
+                        <p className="font-medium">Question Paper Uploaded</p>
+                        <div className="mt-2 space-y-1">
+                          {uploadedImages.map((file, index) => (
+                            <p
+                              key={index}
+                              className="text-sm text-muted-foreground"
+                            >
+                              {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                              {fileStatus[file.name] && (
+                                <span
+                                  className={`ml-2 ${
+                                    fileStatus[file.name].status === "completed"
+                                      ? "text-green-500"
+                                      : fileStatus[file.name].status ===
+                                        "failed"
+                                      ? "text-red-500"
+                                      : fileStatus[file.name].status ===
+                                        "processing"
+                                      ? "text-amber-500"
+                                      : "text-gray-500"
+                                  }`}
+                                >
+                                  {fileStatus[file.name].status === "completed"
+                                    ? "✓"
                                     : fileStatus[file.name].status === "failed"
-                                    ? "text-red-500"
+                                    ? "✗"
                                     : fileStatus[file.name].status ===
                                       "processing"
-                                    ? "text-amber-500"
-                                    : "text-gray-500"
-                                }`}
-                              >
-                                  {fileStatus[file.name].status ===
-                                  "completed"
-                                  ? "✓"
-                                    : fileStatus[file.name].status ===
-                                      "failed"
-                                  ? "✗"
-                                  : fileStatus[file.name].status ===
-                                    "processing"
-                                  ? "..."
-                                  : ""}
-                              </span>
-                            )}
-                          </p>
-                        ))}
+                                    ? "..."
+                                    : ""}
+                                </span>
+                              )}
+                            </p>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-col items-center gap-3">
-                      <Button
-                        onClick={handleAnalyzeImages}
+                      <div className="flex flex-col items-center gap-3">
+                        <Button
+                          onClick={handleAnalyzeImages}
                           disabled={!uploadedImages.length || isProcessing}
                           className="w-full bg-[#58CC02] hover:bg-[#51AA02] text-white flex items-center justify-center gap-2"
                         >
                           <Wand2 className="h-4 w-4" />
-                            Analyze with AI
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setUploadedImages([]);
-                          setFileStatus({});
-                          if (fileInputRef.current) {
-                            fileInputRef.current.value = "";
-                          }
-                        }}
-                        className="text-sm"
-                      >
-                        Upload Different Paper
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                          Analyze with AI
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setUploadedImages([]);
+                            setFileStatus({});
+                            if (fileInputRef.current) {
+                              fileInputRef.current.value = "";
+                            }
+                          }}
+                          className="text-sm"
+                        >
+                          Upload Different Paper
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {extractedQuestions.length > 0 && (
@@ -1458,14 +1483,19 @@ const CreateAssignment = () => {
                     <div key={index} className="border rounded-lg p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center">
-                        <h3 className="font-medium">Question {index + 1}</h3>
-                          <Button 
-                            variant="ghost" 
+                          <h3 className="font-medium">Question {index + 1}</h3>
+                          <Button
+                            variant="ghost"
                             size="sm"
                             className="ml-2 text-[#58CC02] hover:text-[#51AA02]"
-                            onClick={() => setIsEditing(prev => ({ ...prev, [`q-${index}`]: !prev[`q-${index}`] }))}
+                            onClick={() =>
+                              setIsEditing((prev) => ({
+                                ...prev,
+                                [`q-${index}`]: !prev[`q-${index}`],
+                              }))
+                            }
                           >
-                            <Edit size={14} className="mr-1" /> 
+                            <Edit size={14} className="mr-1" />
                             {isEditing[`q-${index}`] ? "Cancel" : "Edit"}
                           </Button>
                         </div>
@@ -1484,15 +1514,22 @@ const CreateAssignment = () => {
                               };
                               setExtractedQuestions(updatedQuestions);
                               // Mark this question as changed
-                              setChangedQuestions(prev => ({ ...prev, [`q-${index}`]: true }));
+                              setChangedQuestions((prev) => ({
+                                ...prev,
+                                [`q-${index}`]: true,
+                              }));
 
                               // Also update questions array for rubric tab
                               const updatedFormattedQuestions = [...questions];
                               if (updatedFormattedQuestions[index]) {
-                                updatedFormattedQuestions[index].maxMarks = newValue;
+                                updatedFormattedQuestions[index].maxMarks =
+                                  newValue;
                                 setQuestions(updatedFormattedQuestions);
                                 setHasUnsavedChanges(true);
-                                setChangedQuestions(prev => ({ ...prev, [`q-${index}`]: true }));
+                                setChangedQuestions((prev) => ({
+                                  ...prev,
+                                  [`q-${index}`]: true,
+                                }));
                               } else {
                                 // Create a new question with unique ID if it doesn't exist
                                 const newQuestion: Question = {
@@ -1501,19 +1538,27 @@ const CreateAssignment = () => {
                                   maxMarks: newValue,
                                   order: index,
                                 };
-                                setQuestions([...updatedFormattedQuestions, newQuestion]);
+                                setQuestions([
+                                  ...updatedFormattedQuestions,
+                                  newQuestion,
+                                ]);
                                 setHasUnsavedChanges(true);
-                                setChangedQuestions(prev => ({ ...prev, [`q-${index}`]: true }));
+                                setChangedQuestions((prev) => ({
+                                  ...prev,
+                                  [`q-${index}`]: true,
+                                }));
                               }
                             }}
                           />
-                          <span className="text-sm text-[#58CC02] mr-2">marks</span>
+                          <span className="text-sm text-[#58CC02] mr-2">
+                            marks
+                          </span>
                         </div>
                       </div>
-                      
+
                       {isEditing[`q-${index}`] ? (
                         <div className="mt-3 mb-3">
-                          <Textarea 
+                          <Textarea
                             value={question.text}
                             className="min-h-[100px] w-full"
                             onChange={(e) => {
@@ -1524,15 +1569,22 @@ const CreateAssignment = () => {
                               };
                               setExtractedQuestions(updatedQuestions);
                               // Mark this question as changed
-                              setChangedQuestions(prev => ({ ...prev, [`q-${index}`]: true }));
-                              
+                              setChangedQuestions((prev) => ({
+                                ...prev,
+                                [`q-${index}`]: true,
+                              }));
+
                               // Update the questions array too
                               const updatedFormattedQuestions = [...questions];
                               if (updatedFormattedQuestions[index]) {
-                                updatedFormattedQuestions[index].questionText = e.target.value;
+                                updatedFormattedQuestions[index].questionText =
+                                  e.target.value;
                                 setQuestions(updatedFormattedQuestions);
                                 setHasUnsavedChanges(true);
-                                setChangedQuestions(prev => ({ ...prev, [`q-${index}`]: true }));
+                                setChangedQuestions((prev) => ({
+                                  ...prev,
+                                  [`q-${index}`]: true,
+                                }));
                               }
                             }}
                           />
@@ -1543,8 +1595,14 @@ const CreateAssignment = () => {
                               disabled={!changedQuestions[`q-${index}`]}
                               onClick={() => {
                                 // Clear change flag and close edit
-                                setChangedQuestions(prev => ({ ...prev, [`q-${index}`]: false }));
-                                setIsEditing(prev => ({ ...prev, [`q-${index}`]: false }));
+                                setChangedQuestions((prev) => ({
+                                  ...prev,
+                                  [`q-${index}`]: false,
+                                }));
+                                setIsEditing((prev) => ({
+                                  ...prev,
+                                  [`q-${index}`]: false,
+                                }));
                               }}
                             >
                               Save Changes
@@ -1552,14 +1610,14 @@ const CreateAssignment = () => {
                           </div>
                         </div>
                       ) : (
-                      <div className="prose prose-sm max-w-none">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkMath]}
-                          rehypePlugins={[rehypeKatex, rehypeRaw]}
-                        >
-                          {question.text}
-                        </ReactMarkdown>
-                      </div>
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkMath]}
+                            rehypePlugins={[rehypeKatex, rehypeRaw]}
+                          >
+                            {question.text}
+                          </ReactMarkdown>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -1652,7 +1710,7 @@ const CreateAssignment = () => {
                               </>
                             )}
                           </Button>
-                          <Button 
+                          <Button
                             variant="outline"
                             className="hover:bg-[#EEF9EE] hover:text-[#58CC02] hover:border-[#58CC02]"
                           >
@@ -1663,24 +1721,39 @@ const CreateAssignment = () => {
 
                         <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <Label htmlFor={`rubric-${question.id}`}>Rubric</Label>
+                            <Label htmlFor={`rubric-${question.id}`}>
+                              Rubric
+                            </Label>
                             <Button
                               variant="ghost"
                               size="sm"
                               className="text-[#58CC02] hover:text-[#51AA02]"
-                              onClick={() => setIsEditing(prev => ({ ...prev, [`rubric-${question.id}`]: !prev[`rubric-${question.id}`] }))}
+                              onClick={() =>
+                                setIsEditing((prev) => ({
+                                  ...prev,
+                                  [`rubric-${question.id}`]:
+                                    !prev[`rubric-${question.id}`],
+                                }))
+                              }
                             >
                               <Edit size={14} className="mr-1" />
-                              {isEditing[`rubric-${question.id}`] ? "Cancel" : "Edit Rubric"}
+                              {isEditing[`rubric-${question.id}`]
+                                ? "Cancel"
+                                : "Edit Rubric"}
                             </Button>
                           </div>
                           {isEditing[`rubric-${question.id}`] ? (
-                          <Textarea
-                            id={`rubric-${question.id}`}
-                            placeholder="Define grading criteria for this question..."
+                            <Textarea
+                              id={`rubric-${question.id}`}
+                              placeholder="Define grading criteria for this question..."
                               className="min-h-[300px] max-h-[300px] w-full overflow-y-auto bg-muted border border-muted rounded-lg p-4"
-                            value={questionRubrics[question.id] || ""}
-                              onChange={(e) => updateQuestionRubric(question.id, e.target.value)}
+                              value={questionRubrics[question.id] || ""}
+                              onChange={(e) =>
+                                updateQuestionRubric(
+                                  question.id,
+                                  e.target.value
+                                )
+                              }
                             />
                           ) : (
                             <div className="min-h-[300px] max-h-[300px] w-full overflow-y-auto bg-muted border border-muted rounded-lg p-4">
@@ -1690,16 +1763,22 @@ const CreateAssignment = () => {
                               >
                                 {questionRubrics[question.id] || ""}
                               </ReactMarkdown>
-                        </div>
+                            </div>
                           )}
                         </div>
-                        
+
                         {isEditing[`rubric-${question.id}`] && (
                           <div className="flex justify-end">
                             <Button
                               size="sm"
                               className="bg-[#58CC02] hover:bg-[#51AA02]"
-                              onClick={() => setIsEditing(prev => ({ ...prev, [`rubric-${question.id}`]: false }))}>
+                              onClick={() =>
+                                setIsEditing((prev) => ({
+                                  ...prev,
+                                  [`rubric-${question.id}`]: false,
+                                }))
+                              }
+                            >
                               Save Rubric
                             </Button>
                           </div>
