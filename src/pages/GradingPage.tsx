@@ -238,10 +238,11 @@ const GradingPage = () => {
         return;
       }
 
+      // Update to specifically use "pending" status to match the enum values in the model
       const response = await assignmentApi.updateStudentAssignment(
         assignmentId,
         studentId,
-        { status: "pending" }
+        { status: "pending" } // This matches the enum value in studentModel.js
       );
 
       if (response.data.success) {
