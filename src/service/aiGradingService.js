@@ -21,6 +21,11 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
     imageSize: base64Image ? base64Image.length : 0,
   });
 
+  if (!base64Image) {
+    console.error("No image data provided");
+    throw new Error("No image data provided for processing");
+  }
+
   try {
     // Prepare the request for Gemini API
     const requestData = {
@@ -80,6 +85,9 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
     const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
     if (!apiKey) {
       console.error("ERROR: Google API key is missing!");
+      throw new Error(
+        "API key for Gemini is missing. Please check your environment variables."
+      );
     } else {
       // Only show first 4 chars and last 4 chars for security
       const maskedKey =
@@ -89,9 +97,7 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
 
     // Call the Gemini API - use a model that's stable and available
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${
-        import.meta.env.VITE_GOOGLE_API_KEY
-      }`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: {
@@ -130,13 +136,40 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
           solutionsCount: extractionResult.questionSolutions?.length || 0,
         });
 
-        // Prepare the simplified feedback data with only questions and solutions
-        const feedbackData =
-          extractionResult.questionSolutions?.map((solution) => ({
-            questionId: solution.questionNumber.toString(),
-            solution: solution.extractedSolution || "No solution extracted",
-          })) || [];
+        // Map question numbers to actual question IDs if available
+        const feedbackData = [];
 
+        if (extractionResult.questionSolutions?.length > 0) {
+          extractionResult.questionSolutions.forEach((solution) => {
+            const questionNumber = solution.questionNumber;
+            // Find the actual question ID from the assignment details
+            // Adjust for zero-based index in the array vs one-based question numbers
+            const questionIndex = questionNumber - 1;
+            const questionId =
+              assignmentDetails.questions[questionIndex]?._id ||
+              questionNumber.toString();
+
+            feedbackData.push({
+              questionId: questionId,
+              solution: solution.extractedSolution || "No solution extracted",
+            });
+          });
+        }
+
+        // If no solutions were extracted, handle this case
+        if (feedbackData.length === 0) {
+          console.warn("No solutions were extracted from the image");
+
+          // Create default empty solutions for each question
+          assignmentDetails.questions.forEach((question, index) => {
+            feedbackData.push({
+              questionId: question._id || (index + 1).toString(),
+              solution: "No solution could be extracted",
+            });
+          });
+        }
+
+        console.log("Mapped feedback data:", feedbackData);
         console.log("===== EXTRACTING SOLUTIONS COMPLETE =====");
 
         return {
@@ -146,9 +179,19 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
       } catch (parseError) {
         console.error("Error parsing JSON response:", parseError);
         console.error("Raw response text:", responseText);
-        throw new Error(
-          `Failed to parse extraction result: ${parseError.message}`
+
+        // Return a default structure in case of parsing error
+        const defaultFeedback = assignmentDetails.questions.map(
+          (question, i) => ({
+            questionId: question._id || (i + 1).toString(),
+            solution: "Error extracting solution: " + parseError.message,
+          })
         );
+
+        return {
+          success: true,
+          feedbackData: defaultFeedback,
+        };
       }
     } else {
       console.error("Invalid API response structure:", data);
@@ -161,7 +204,16 @@ export const gradeSubmission = async (base64Image, assignmentDetails) => {
       message: error.message,
       stack: error.stack,
     });
-    throw error;
+
+    // Instead of throwing, return a structured error response
+    return {
+      success: false,
+      error: error.message || "An error occurred during solution extraction",
+      feedbackData: assignmentDetails.questions.map((question, i) => ({
+        questionId: question._id || (i + 1).toString(),
+        solution: "Failed to extract solution",
+      })),
+    };
   }
 };
 
@@ -181,19 +233,16 @@ export const updateGradingStatus = async (
     console.log("===== UPDATING SOLUTIONS START =====");
     console.log("Updating solutions for:", { assignmentId, studentId });
 
-    if (!extractionResult || !extractionResult.feedbackData) {
-      console.error("Invalid extraction result structure:", extractionResult);
-      throw new Error("Extraction result is missing required fields");
+    if (!extractionResult) {
+      throw new Error("Extraction result is missing or invalid");
     }
 
-    // Prepare the updated data with only question IDs and solutions
-    const questionSolutions = extractionResult.feedbackData.map((item) => ({
-      questionId: item.questionId,
-      solution: item.solution,
-    }));
+    // Even if extraction had an error, try to update with what we have
+    const questionSolutions = extractionResult.feedbackData || [];
 
     console.log("Solution data prepared:", {
       solutionsCount: questionSolutions.length,
+      success: extractionResult.success,
     });
 
     // Update the student's assignment with the solutions
@@ -202,6 +251,7 @@ export const updateGradingStatus = async (
       assignmentId,
       studentId,
       {
+        status: "completed", // Use "completed" status since we're not grading anymore
         feedbackData: questionSolutions,
       }
     );
@@ -232,6 +282,10 @@ export const updateGradingStatus = async (
       message: error.message,
       stack: error.stack,
     });
-    throw error;
+
+    return {
+      success: false,
+      message: "Failed to update student solutions: " + error.message,
+    };
   }
 };
