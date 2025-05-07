@@ -84,52 +84,6 @@ const AssignmentDetailPage = () => {
   );
 
   // Helper to test Gemini API connection
-  const testGeminiApi = async () => {
-    try {
-      console.log("Testing Gemini API connection...");
-
-      const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
-      if (!apiKey) {
-        console.error("Missing API key for Gemini!");
-        return;
-      }
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: "Please answer with just one word: Does this API connection work?",
-                  },
-                ],
-              },
-            ],
-          }),
-        }
-      );
-
-      const result = await response.json();
-      console.log("Gemini API test response:", result);
-
-      if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
-        console.log(
-          "Gemini API test successful:",
-          result.candidates[0].content.parts[0].text
-        );
-      } else {
-        console.error("Gemini API test failed - unexpected response format");
-      }
-    } catch (error) {
-      console.error("Gemini API test failed:", error);
-    }
-  };
 
   // Helper to convert a File to base64 string
   const fileToBase64 = (file: File): Promise<string | null> =>
@@ -155,7 +109,6 @@ const AssignmentDetailPage = () => {
         console.log(`Fetching assignment details for ID: ${assignmentId}`);
 
         // Test the Gemini API connection
-        await testGeminiApi();
 
         const response = await assignmentApi.getDetails(assignmentId);
 
@@ -926,9 +879,16 @@ const AssignmentDetailPage = () => {
     );
   }
 
-  const filteredStudents = availableStudents.filter((s) =>
-    s.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter available students by search query and exclude those already graded
+  const filteredStudents = availableStudents.filter((s) => {
+    const matchesSearch = s.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const isGraded = assignment.students.some(
+      (st) => st.studentId === s.id && st.status === "graded"
+    );
+    return matchesSearch && !isGraded;
+  });
 
   const pendingCount = assignment.students.filter(
     (s) => s.status === "pending"
@@ -1159,7 +1119,7 @@ const AssignmentDetailPage = () => {
                                   {assigningStudentId === student.id ? (
                                     <>
                                       <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                      Assigning...
+                                      Grading...
                                     </>
                                   ) : (
                                     "Assign"
