@@ -187,74 +187,25 @@ export const gradeSubmission = async (base64Images, assignmentDetails) => {
         console.log("Complete mapped feedback data:", feedbackData);
         console.log("===== EXTRACTING SOLUTIONS COMPLETE =====");
 
-        // If we have assignmentId and studentId in assignmentDetails, save the solutions
+        // Replace old saving logic with updateGrades API call
         if (assignmentDetails.assignmentId && assignmentDetails.studentId) {
           try {
-            console.log("Saving solutions to database using direct method...");
-
-            // First update the status to "graded" directly
-            await aiGradingApi.updateStudentAssignment(
+            console.log("Updating solutions via updateGrades API...");
+            await aiGradingApi.updateGrades(
               assignmentDetails.assignmentId,
               assignmentDetails.studentId,
-              { status: "graded" }
+              { status: "graded", feedbackData: feedbackData }
             );
-
-            // Now update each question's solution individually using our debug endpoint
-            // This is more reliable as it bypasses potential mismatches in the API
-            const responses = extractionResult.questionSolutions || [];
-
-            console.log("Solutions to save:", responses);
-
-            // If we have solutions, save each one individually
-            if (responses.length > 0) {
-              for (let i = 0; i < responses.length; i++) {
-                const solution = responses[i].extractedSolution;
-
-                if (
-                  solution &&
-                  solution !== "No solution was found in the submission"
-                ) {
-                  try {
-                    // Use the debug endpoint to directly update the solution
-                    const debugResponse = await fetch(
-                      `${import.meta.env.VITE_BACKEND_URL}/api/v1/ai-grading/${
-                        assignmentDetails.assignmentId
-                      }/students/${assignmentDetails.studentId}/debug-solution`,
-                      {
-                        method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                          Authorization: `Bearer ${localStorage.getItem(
-                            "token"
-                          )}`,
-                        },
-                        body: JSON.stringify({
-                          questionIndex: i,
-                          solution: solution,
-                        }),
-                      }
-                    );
-
-                    const result = await debugResponse.json();
-                    console.log(`Solution ${i + 1} saved:`, result);
-                  } catch (solutionError) {
-                    console.error(
-                      `Error saving solution ${i + 1}:`,
-                      solutionError
-                    );
-                  }
-                }
-              }
-            }
-
-            console.log("All solutions saved to database");
-          } catch (saveError) {
-            console.error("Error saving solutions to database:", saveError);
-            // Continue anyway to return the solutions
+            console.log("Solutions updated successfully via updateGrades API");
+          } catch (err) {
+            console.error(
+              "Error updating solutions via updateGrades API:",
+              err
+            );
           }
         } else {
           console.warn(
-            "Missing assignmentId or studentId, can't save solutions to database"
+            "Missing assignmentId or studentId, can't update solutions via API"
           );
         }
 

@@ -326,9 +326,9 @@ const CreateAssignment = () => {
   const [activeTab, setActiveTab] = useState("questions");
   const [title, setTitle] = useState("");
   const [showTitleDialog, setShowTitleDialog] = useState(false);
-  const [savingAction, setSavingAction] = useState<
-    "draft" | "assignment" | null
-  >(null);
+  const [savingAction, setSavingAction] = useState<"assignment" | "draft">(
+    "assignment"
+  );
   const [maxMarks, setMaxMarks] = useState("");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
@@ -354,6 +354,7 @@ const CreateAssignment = () => {
   const [changedQuestions, setChangedQuestions] = useState<
     Record<string, boolean>
   >({});
+  const [isCreatingAssignment, setIsCreatingAssignment] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -722,12 +723,17 @@ const CreateAssignment = () => {
     }
   };
 
-  const initiateAssignmentSave = () => {
+  const initiateAssignmentSave = async () => {
     if (!title.trim()) {
       setSavingAction("assignment");
       setShowTitleDialog(true);
     } else {
-      saveAssignment();
+      setIsCreatingAssignment(true);
+      try {
+        await saveAssignment();
+      } finally {
+        setIsCreatingAssignment(false);
+      }
     }
   };
 
@@ -1830,8 +1836,9 @@ const CreateAssignment = () => {
                   <Button
                     onClick={initiateAssignmentSave}
                     className="w-full bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200"
+                    disabled={isCreatingAssignment}
                   >
-                    Save
+                    {isCreatingAssignment ? "Saving..." : "Save"}
                   </Button>
                 ) : (
                   // Draft and Create options for new assignments
@@ -1846,10 +1853,12 @@ const CreateAssignment = () => {
                     </Button>
                     <Button
                       onClick={initiateAssignmentSave}
-                      disabled={!allRubricsFilled}
+                      disabled={!allRubricsFilled || isCreatingAssignment}
                       className="w-full bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200"
                     >
-                      Create Assignment
+                      {isCreatingAssignment
+                        ? "Creating Assignment..."
+                        : "Create Assignment"}
                     </Button>
                   </>
                 )}

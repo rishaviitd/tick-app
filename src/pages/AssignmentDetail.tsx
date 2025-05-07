@@ -79,6 +79,9 @@ const AssignmentDetailPage = () => {
     name: string;
   } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [assigningStudentId, setAssigningStudentId] = useState<string | null>(
+    null
+  );
 
   // Helper to test Gemini API connection
   const testGeminiApi = async () => {
@@ -594,7 +597,10 @@ const AssignmentDetailPage = () => {
       return;
     }
 
+    // mark this student as assigning
+    setAssigningStudentId(studentId);
     setIsProcessing(true);
+    // show processing toast for this student
     toast({
       title: "Processing Submission",
       description: `Assigning ${studentName} and starting solution extraction...`,
@@ -778,6 +784,8 @@ const AssignmentDetailPage = () => {
       }
     } finally {
       setIsProcessing(false);
+      // clear assigning state
+      setAssigningStudentId(null);
     }
   };
 
@@ -1146,9 +1154,9 @@ const AssignmentDetailPage = () => {
                                       uploadedFiles
                                     )
                                   }
-                                  disabled={isProcessing}
+                                  disabled={assigningStudentId === student.id}
                                 >
-                                  {isProcessing ? (
+                                  {assigningStudentId === student.id ? (
                                     <>
                                       <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                                       Assigning...
