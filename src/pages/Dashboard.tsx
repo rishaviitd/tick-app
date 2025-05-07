@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/auth/context/AuthContext";
 import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import apiClient, { classApi } from "@/lib/api"; // Import the axios-based API client
@@ -168,7 +168,9 @@ const Dashboard = () => {
                 className="bg-white p-4 rounded-lg shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] cursor-pointer hover:shadow-lg transition-shadow border border-gray-100"
                 onClick={() => handleClassClick(classItem._id)}
               >
-                <h3 className="font-medium text-lg font-inter">{classItem.title}</h3>
+                <h3 className="font-medium text-lg font-inter">
+                  {classItem.title}
+                </h3>
                 <p className="text-gray-600">
                   {classItem.students.length} student
                   {classItem.students.length !== 1 ? "s" : ""}
@@ -182,9 +184,6 @@ const Dashboard = () => {
           </div>
         )}
       </section>
-
-      {/* Only show debugger in development */}
-      {import.meta.env.DEV && <ApiDebugger />}
     </div>
   );
 };

@@ -171,7 +171,7 @@ export const gradeSubmission = async (base64Images, assignmentDetails) => {
         for (let i = 0; i < questionCount; i++) {
           const questionNumber = i + 1;
           const question = assignmentDetails.questions[i];
-          const questionId = question._id || questionNumber.toString();
+          const questionId = question.id || questionNumber.toString();
 
           // Get solution from map or use default
           const solution = solutionMap.has(questionNumber)
@@ -187,6 +187,77 @@ export const gradeSubmission = async (base64Images, assignmentDetails) => {
         console.log("Complete mapped feedback data:", feedbackData);
         console.log("===== EXTRACTING SOLUTIONS COMPLETE =====");
 
+        // If we have assignmentId and studentId in assignmentDetails, save the solutions
+        if (assignmentDetails.assignmentId && assignmentDetails.studentId) {
+          try {
+            console.log("Saving solutions to database using direct method...");
+
+            // First update the status to "graded" directly
+            await aiGradingApi.updateStudentAssignment(
+              assignmentDetails.assignmentId,
+              assignmentDetails.studentId,
+              { status: "graded" }
+            );
+
+            // Now update each question's solution individually using our debug endpoint
+            // This is more reliable as it bypasses potential mismatches in the API
+            const responses = extractionResult.questionSolutions || [];
+
+            console.log("Solutions to save:", responses);
+
+            // If we have solutions, save each one individually
+            if (responses.length > 0) {
+              for (let i = 0; i < responses.length; i++) {
+                const solution = responses[i].extractedSolution;
+
+                if (
+                  solution &&
+                  solution !== "No solution was found in the submission"
+                ) {
+                  try {
+                    // Use the debug endpoint to directly update the solution
+                    const debugResponse = await fetch(
+                      `${import.meta.env.VITE_BACKEND_URL}/api/v1/ai-grading/${
+                        assignmentDetails.assignmentId
+                      }/students/${assignmentDetails.studentId}/debug-solution`,
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${localStorage.getItem(
+                            "token"
+                          )}`,
+                        },
+                        body: JSON.stringify({
+                          questionIndex: i,
+                          solution: solution,
+                        }),
+                      }
+                    );
+
+                    const result = await debugResponse.json();
+                    console.log(`Solution ${i + 1} saved:`, result);
+                  } catch (solutionError) {
+                    console.error(
+                      `Error saving solution ${i + 1}:`,
+                      solutionError
+                    );
+                  }
+                }
+              }
+            }
+
+            console.log("All solutions saved to database");
+          } catch (saveError) {
+            console.error("Error saving solutions to database:", saveError);
+            // Continue anyway to return the solutions
+          }
+        } else {
+          console.warn(
+            "Missing assignmentId or studentId, can't save solutions to database"
+          );
+        }
+
         return {
           success: true,
           feedbackData: feedbackData,
@@ -198,7 +269,7 @@ export const gradeSubmission = async (base64Images, assignmentDetails) => {
         // Return a default structure in case of parsing error
         const defaultFeedback = assignmentDetails.questions.map(
           (question, i) => ({
-            questionId: question._id || (i + 1).toString(),
+            questionId: question.id || (i + 1).toString(),
             solution: "Error extracting solution: " + parseError.message,
           })
         );
@@ -225,7 +296,7 @@ export const gradeSubmission = async (base64Images, assignmentDetails) => {
       success: false,
       error: error.message || "An error occurred during solution extraction",
       feedbackData: assignmentDetails.questions.map((question, i) => ({
-        questionId: question._id || (i + 1).toString(),
+        questionId: question.id || (i + 1).toString(),
         solution: "Failed to extract solution",
       })),
     };

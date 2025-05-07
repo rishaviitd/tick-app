@@ -15,17 +15,14 @@ import Dashboard from "./pages/Dashboard";
 import CreateAssignment from "./pages/CreateAssignment";
 import CreateClass from "./pages/CreateClass";
 import GradingPage from "./pages/GradingPage";
-import AnalyticsPage from "./pages/AnalyticsPage";
-import StudentView from "./pages/StudentView";
 import NotFound from "./pages/NotFound";
 import ClassDetail from "./pages/ClassDetail";
 import AssignmentDetail from "./pages/AssignmentDetail";
 import AssignmentSetup from "./pages/AssignmentSetup";
-import AssignmentAnalytics from "./pages/AssignmentAnalytics";
-import AuthCallback from "./pages/AuthCallback";
-import AuthError from "./pages/AuthError";
+import AuthCallback from "./auth/pages/AuthCallback";
+import AuthError from "./auth/pages/AuthError";
 import FeedbackPage from "./pages/FeedbackPage";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider } from "./auth/context/AuthContext";
 import { PrivateRoute } from "./components/PrivateRoute";
 
 // Create a client
@@ -74,10 +71,7 @@ const App = () => {
                   path="/assignment/setup/:assignmentId"
                   element={<AssignmentSetup />}
                 />
-                <Route
-                  path="/assignment/:assignmentId/analytics"
-                  element={<AssignmentAnalytics />}
-                />
+                <Route path="/assignment/:assignmentId/analytics" />
                 <Route
                   path="/assignment/:assignmentId/student/:studentId/feedback"
                   element={<FeedbackPage />}
@@ -92,11 +86,7 @@ const App = () => {
                 />
                 <Route path="/create-class" element={<CreateClass />} />
                 <Route path="/grading" element={<GradingPage />} />
-                <Route path="/analytics" element={<AnalyticsPage />} />
               </Route>
-
-              {/* Student view might need different auth */}
-              <Route path="/student-view" element={<StudentView />} />
 
               {/* Catch all */}
               <Route path="*" element={<NotFound />} />

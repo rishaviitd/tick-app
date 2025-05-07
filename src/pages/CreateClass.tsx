@@ -21,7 +21,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/auth/context/AuthContext";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { ScrollArea } from "@/components/ui/scroll-area";

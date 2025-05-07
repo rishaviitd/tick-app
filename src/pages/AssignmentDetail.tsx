@@ -239,22 +239,36 @@ const AssignmentDetailPage = () => {
         } else {
           console.warn("Unexpected API response format:", response.data);
 
-          // For development, fall back to dummy data if API returns empty
+          // Only fall back to dummy data in development environment
+          if (import.meta.env.DEV) {
+            console.log("Using development fallback data for students");
+            setAvailableStudents([
+              { id: "ST005", name: "Alex Brown" },
+              { id: "ST006", name: "Sarah Miller" },
+              { id: "ST007", name: "David Jones" },
+            ]);
+          } else {
+            // In production, just set an empty array
+            setAvailableStudents([]);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching available students:", err);
+
+        // Only fall back to dummy data in development environment
+        if (import.meta.env.DEV) {
+          console.log(
+            "Using development fallback data for students after error"
+          );
           setAvailableStudents([
             { id: "ST005", name: "Alex Brown" },
             { id: "ST006", name: "Sarah Miller" },
             { id: "ST007", name: "David Jones" },
           ]);
+        } else {
+          // In production, just set an empty array
+          setAvailableStudents([]);
         }
-      } catch (err) {
-        console.error("Error fetching available students:", err);
-
-        // For development, fall back to dummy data if API fails
-        setAvailableStudents([
-          { id: "ST005", name: "Alex Brown" },
-          { id: "ST006", name: "Sarah Miller" },
-          { id: "ST007", name: "David Jones" },
-        ]);
       } finally {
         setLoadingStudents(false);
       }
@@ -556,6 +570,21 @@ const AssignmentDetailPage = () => {
       });
       return;
     }
+
+    // Check if student is already assigned with a status other than pending
+    const existingAssignment = assignment.students.find(
+      (s) => s.studentId === studentId && s.status !== "pending"
+    );
+
+    if (existingAssignment) {
+      toast({
+        title: "Already Assigned",
+        description: `${studentName} already has this assignment with status: ${existingAssignment.status}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (uploadedFiles.length === 0) {
       toast({
         title: "No Files",
@@ -573,18 +602,42 @@ const AssignmentDetailPage = () => {
 
     try {
       // 1. Update student status to 'processing'
-      await assignmentApi.updateStudentAssignment(assignmentId, studentId, {
-        status: "processing",
-      });
+      const updateResponse = await assignmentApi.updateStudentAssignment(
+        assignmentId,
+        studentId,
+        {
+          status: "processing",
+        }
+      );
+
+      console.log("Update student assignment response:", updateResponse);
+
+      if (!updateResponse.data.success) {
+        throw new Error(
+          "Failed to update student status: " + updateResponse.data.message
+        );
+      }
+
+      // Update local state
       setAssignment(
         (prev) =>
           prev && {
             ...prev,
-            students: prev.students.map((s) =>
-              s.studentId === studentId
-                ? { ...s, status: "processing" as const }
-                : s
-            ),
+            students: prev.students.some((s) => s.studentId === studentId)
+              ? prev.students.map((s) =>
+                  s.studentId === studentId
+                    ? { ...s, status: "processing" as const }
+                    : s
+                )
+              : [
+                  ...prev.students,
+                  {
+                    studentId,
+                    studentName,
+                    status: "processing" as const,
+                    isShared: false,
+                  },
+                ],
           }
       );
 
@@ -597,64 +650,75 @@ const AssignmentDetailPage = () => {
             base64Images.push(base64Data);
           }
         } catch (err) {
-          console.error(`Error converting file ${file.name} to base64:`, err);
-          toast({
-            title: "File Conversion Error",
-            description: `Could not process file ${file.name}. Skipping.`,
-            variant: "destructive",
-          });
+          console.error("Error converting file to base64:", err);
         }
       }
 
-      if (base64Images.length === 0) {
-        throw new Error("No files could be converted for processing.");
+      // After processing, update UI to show student is now assigned
+      // Remove from available students list
+      setAvailableStudents((prevStudents) =>
+        prevStudents.filter((s) => s.id !== studentId)
+      );
+
+      // Debug log assignment questions
+      console.log("Assignment questions:", assignment.questions);
+
+      // 3. Prepare grading data with robust validation
+      // First validate questions array
+      if (
+        !assignment.questions ||
+        !Array.isArray(assignment.questions) ||
+        assignment.questions.length === 0
+      ) {
+        throw new Error("Assignment has no questions to grade");
       }
 
-      // 3. Prepare grading details
-      const gradingDetails = {
-        title: assignment.title,
-        maxMarks: assignment.maxMarks,
-        questions: assignment.questions,
+      // Create a safe version of the questions with default values
+      const safeQuestions = assignment.questions
+        .filter((q) => q !== null && q !== undefined)
+        .map((q) => {
+          // Debug each question
+          console.log("Processing question:", q);
+
+          // Create a safe version with defaults for all properties
+          return {
+            id: q?._id || "",
+            text: q?.text || "Question text not available",
+            maxMarks: typeof q?.maxMarks === "number" ? q.maxMarks : 0,
+            rubric: q?.rubric || "",
+          };
+        });
+
+      // Validate we have questions after filtering
+      if (safeQuestions.length === 0) {
+        throw new Error("No valid questions found in the assignment");
+      }
+
+      // Prepare the correct data format for gradeSubmission
+      // The service expects two separate parameters: base64Images and assignmentDetails
+      const assignmentDetails = {
+        title: assignment.title || "Assignment",
+        questions: safeQuestions,
+        assignmentId: assignmentId,
+        studentId: studentId,
       };
 
-      console.log("DEBUG: About to call gradeSubmission with:", {
-        imageCount: base64Images.length,
-        assignmentTitle: assignment.title,
-        maxMarks: assignment.maxMarks,
-        hasQuestions: Array.isArray(assignment.questions),
-        questionsCount: Array.isArray(assignment.questions)
-          ? assignment.questions.length
-          : 0,
-      });
+      console.log("Prepared assignment details:", assignmentDetails);
 
-      // 4. Call gradeSubmission ONCE with all images
-      const extractionResult = await gradeSubmission(
-        base64Images, // Pass array of images
-        gradingDetails
+      // 4. Start the grading process
+      const gradingResponse = await gradeSubmission(
+        base64Images,
+        assignmentDetails
       );
+      console.log("Grading response:", gradingResponse);
 
-      if (!extractionResult || !extractionResult.feedbackData) {
-        // Use error message from service if available
+      if (!gradingResponse || !gradingResponse.success) {
         throw new Error(
-          extractionResult?.error ||
-            "Solution extraction failed. No feedback data received."
+          gradingResponse?.message || "Failed to process submission"
         );
       }
 
-      // 5. Update backend ONCE with extracted solutions
-      const updateResult = await updateGradingStatus(
-        assignmentId,
-        studentId,
-        extractionResult // Pass the whole result object
-      );
-
-      if (!updateResult.success) {
-        throw new Error(
-          updateResult.message || "Failed to update grading status."
-        );
-      }
-
-      // 6. Update UI to show completed status
+      // After successful grading, update the status to graded immediately in the UI
       setAssignment(
         (prev) =>
           prev && {
@@ -663,8 +727,7 @@ const AssignmentDetailPage = () => {
               s.studentId === studentId
                 ? {
                     ...s,
-                    status: "completed" as const, // Now valid
-                    score: undefined, // Remove score as we are not grading
+                    status: "graded" as const, // Changed from "completed" to "graded"
                   }
                 : s
             ),
@@ -673,27 +736,46 @@ const AssignmentDetailPage = () => {
 
       toast({
         title: "Processing Complete",
-        description: `${studentName}'s submission has been processed.`,
+        description: `${studentName}'s submission has been processed and solutions saved.`,
       });
     } catch (error: any) {
       console.error("Error processing submission:", error);
+
+      // Log more details about the error
+      console.error("Error details:", {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      });
+
       toast({
         title: "Processing Failed",
         description: error.message || "An unexpected error occurred.",
         variant: "destructive",
       });
-      // Optionally revert status back to pending or failed
-      setAssignment(
-        (prev) =>
-          prev && {
-            ...prev,
-            students: prev.students.map((s) =>
-              s.studentId === studentId
-                ? { ...s, status: "failed" as const }
-                : s
-            ),
-          }
-      );
+
+      // Revert status to failed
+      try {
+        // Update the backend status to failed
+        await assignmentApi.updateStudentAssignment(assignmentId, studentId, {
+          status: "failed",
+        });
+
+        // Update local state
+        setAssignment(
+          (prev) =>
+            prev && {
+              ...prev,
+              students: prev.students.map((s) =>
+                s.studentId === studentId
+                  ? { ...s, status: "failed" as const }
+                  : s
+              ),
+            }
+        );
+      } catch (updateError) {
+        console.error("Error updating student status to failed:", updateError);
+      }
     } finally {
       setIsProcessing(false);
     }

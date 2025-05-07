@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { classApi, assignmentApi } from "@/lib/api";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/auth/context/AuthContext";
 
 interface Student {
   id: string;

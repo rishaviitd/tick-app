@@ -56,7 +56,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/auth/context/AuthContext";
 
 // API paths - use environment variable for backend URL to work in all environments
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "";

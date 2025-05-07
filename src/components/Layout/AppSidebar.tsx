@@ -20,7 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/auth/context/AuthContext";
 
 interface SidebarLinkProps {
   to: string;
@@ -106,7 +106,11 @@ export const AppSidebar = () => {
 
             <div className="flex flex-col h-full p-4">
               <div className="flex items-center gap-3 px-4 py-3 mb-6">
-                <img src="/tick-ai-logo.svg" alt="tick AI logo" className="w-10 h-10" />
+                <img
+                  src="/tick-ai-logo.svg"
+                  alt="tick AI logo"
+                  className="w-10 h-10"
+                />
                 <span className="text-xl font-bold text-[#58CC02]">
                   tick AI
                 </span>
@@ -183,11 +187,13 @@ export const AppSidebar = () => {
       )}
     >
       <div className="flex items-center gap-3 px-4 py-5">
-        <img src="/tick-ai-logo.svg" alt="tick AI logo" className="w-7 h-7 min-w-[28px]" />
+        <img
+          src="/tick-ai-logo.svg"
+          alt="tick AI logo"
+          className="w-7 h-7 min-w-[28px]"
+        />
         {!isCollapsed && (
-          <span className="text-xl font-bold text-[#58CC02]">
-            tick AI
-          </span>
+          <span className="text-xl font-bold text-[#58CC02]">tick AI</span>
         )}
       </div>
 
