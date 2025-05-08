@@ -67,12 +67,12 @@ Important: Do not modify or improve the steps. Report exactly what the student w
   }
 
   console.log("Making API call to Gemini for step breakdown with:", {
-    model: "gemini-1.5-flash",
+    model: "gemini-2.0-flash",
     promptLength: promptPart.text.length,
   });
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
