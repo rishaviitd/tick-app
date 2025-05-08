@@ -19,8 +19,6 @@ import { aiGradingApi, assignmentApi } from "@/lib/api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { bulkBreakdownSolutionSteps } from "@/service/aiBulkStepsBreakdownService";
-import { bulkEvaluateSolutionSteps } from "@/service/aiBulkEvaluateSolutionStepsService";
 
 interface QuestionSolution {
   questionId: string;
@@ -144,52 +142,6 @@ function FeedbackPage() {
     navigate(`/assignment/${assignmentId}`);
   };
 
-  // Handler to test steps breakdown
-  const handleTestBreakdown = () => {
-    if (!solutions) return;
-    console.log("Initiating bulk steps breakdown...");
-    const promises = bulkBreakdownSolutionSteps(
-      assignmentId!,
-      studentId!,
-      solutions.questionResponses
-    );
-    promises.forEach((promise, idx) => {
-      promise
-        .then(({ breakdown }) => {
-          console.log(`Breakdown for Question ${idx + 1}:`, breakdown);
-        })
-        .catch((error) => {
-          console.error(
-            `Error during breakdown for Question ${idx + 1}:`,
-            error
-          );
-        });
-    });
-  };
-
-  // Handler to evaluate steps (stub)
-  const handleEvaluateSteps = () => {
-    if (!solutions) return;
-    console.log("Initiating bulk steps evaluation...");
-    const promises = bulkEvaluateSolutionSteps(
-      assignmentId!,
-      studentId!,
-      solutions.questionResponses
-    );
-    promises.forEach((promise, idx) => {
-      promise
-        .then(({ evaluation }) => {
-          console.log(`Evaluation for Question ${idx + 1}:`, evaluation);
-        })
-        .catch((error) => {
-          console.error(
-            `Error during evaluation for Question ${idx + 1}:`,
-            error
-          );
-        });
-    });
-  };
-
   // Loading state
   if (loading || !assignmentMeta) {
     return (
@@ -258,14 +210,6 @@ function FeedbackPage() {
           </Button>
           <h1 className="text-2xl font-bold">{solutions.assignmentTitle}</h1>
           <p className="text-muted-foreground">{solutions.studentName}</p>
-        </div>
-        <div className="flex space-x-2">
-          <Button variant="outline" size="sm" onClick={handleTestBreakdown}>
-            Test Steps Breakdown
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleEvaluateSteps}>
-            Evaluate Steps
-          </Button>
         </div>
       </div>
 
