@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import remarkBreaks from "remark-breaks";
 import "katex/dist/katex.min.css";
 
 interface QuestionSolution {
@@ -56,6 +57,9 @@ function FeedbackPage() {
   const [breakdowns, setBreakdowns] = useState<Record<string, any>>({});
   const [breakdownsLoading, setBreakdownsLoading] = useState(false);
   const [breakdownsError, setBreakdownsError] = useState<string | null>(null);
+
+  // Helper to replace literal \n with actual newlines for Markdown rendering
+  const unescapeNewlines = (str: string) => str.replace(/\\n/g, "\n");
 
   useEffect(() => {
     const loadData = async () => {
@@ -262,9 +266,14 @@ function FeedbackPage() {
                             Student's Solution
                           </h4>
                           {hasSolution ? (
-                            <p className="text-sm bg-slate-50 p-2 rounded-md whitespace-pre-wrap">
-                              {question.solution}
-                            </p>
+                            <div className="text-sm bg-slate-50 p-2 rounded-md whitespace-pre-wrap">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkMath, remarkBreaks]}
+                                rehypePlugins={[rehypeKatex]}
+                              >
+                                {unescapeNewlines(question.solution)}
+                              </ReactMarkdown>
+                            </div>
                           ) : (
                             <div className="text-sm bg-slate-50 p-3 rounded-md text-center text-muted-foreground">
                               <p>
@@ -289,12 +298,17 @@ function FeedbackPage() {
                               </div>
                             ) : breakdowns[question.questionId] ? (
                               <>
-                                <p className="text-xs italic mb-2 bg-slate-50 p-2 rounded-md whitespace-pre-wrap">
-                                  {
-                                    breakdowns[question.questionId]
-                                      .studentThoughtProcess
-                                  }
-                                </p>
+                                <div className="text-xs italic mb-2 bg-slate-50 p-2 rounded-md whitespace-pre-wrap">
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkMath, remarkBreaks]}
+                                    rehypePlugins={[rehypeKatex]}
+                                  >
+                                    {unescapeNewlines(
+                                      breakdowns[question.questionId]
+                                        .studentThoughtProcess
+                                    )}
+                                  </ReactMarkdown>
+                                </div>
                                 <ul className="space-y-2">
                                   {breakdowns[question.questionId].steps.map(
                                     (step: any) => {
@@ -329,19 +343,39 @@ function FeedbackPage() {
                                               Step {step.stepNumber}
                                             </span>
                                           </div>
-                                          <p className="text-sm">
+                                          <div className="text-sm whitespace-pre-wrap">
                                             <strong>Work:</strong>{" "}
-                                            {step.studentWork}
-                                          </p>
+                                            <ReactMarkdown
+                                              remarkPlugins={[
+                                                remarkMath,
+                                                remarkBreaks,
+                                              ]}
+                                              rehypePlugins={[rehypeKatex]}
+                                            >
+                                              {unescapeNewlines(
+                                                step.studentWork
+                                              )}
+                                            </ReactMarkdown>
+                                          </div>
                                           <p className="text-sm">
                                             <strong>Intent:</strong>{" "}
                                             {step.studentIntent}
                                           </p>
                                           {justification && (
-                                            <p className="text-sm italic">
+                                            <div className="text-sm italic whitespace-pre-wrap">
                                               <strong>Justification:</strong>{" "}
-                                              {justification}
-                                            </p>
+                                              <ReactMarkdown
+                                                remarkPlugins={[
+                                                  remarkMath,
+                                                  remarkBreaks,
+                                                ]}
+                                                rehypePlugins={[rehypeKatex]}
+                                              >
+                                                {unescapeNewlines(
+                                                  justification
+                                                )}
+                                              </ReactMarkdown>
+                                            </div>
                                           )}
                                         </li>
                                       );

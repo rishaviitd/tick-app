@@ -31,44 +31,46 @@ export const gradeSubmission = async (base64Images, assignmentDetails) => {
     // Prepare the parts for the Gemini API request
     const promptPart = {
       text: `You are helping to extract student solutions from answer sheet images.
-                
-                
-                
-                QUESTIONS:
-                ${
-                  assignmentDetails.questions
-                    ?.map(
-                      (q, i) =>
-                        `${i + 1}. ${
-                          q.text || q.questionText || "Question " + (i + 1)
-                        }`
-                    )
-                    .join("\n") || "Questions not provided"
-                }
-                
-                INSTRUCTIONS:
-                1. Examine ALL the student's answer sheet images thoroughly - ${
-                  base64Images.length
-                } images are provided.
-                2. Extract solutions for EACH question from ANY of the images.
-                3. Make sure to extract solutions for ALL questions listed above.
-                4. If a solution spans across multiple images, combine the information.
-                5. For each question, provide the most complete solution you can find.
-                6. If you cannot find a solution for a question, indicate this explicitly.
-                
-                Please return a JSON response **only** with the following exact structure (no markdown or code fences):
-                {
-                  "questionSolutions": [
-                    {
-                      "questionNumber": number,
-                      "extractedSolution": "The extracted solution from student's work"
-                    },
-                    ... (repeat for all questions, even if solution not found) ...
-                  ]
-                }
 
-                IMPORTANT: Return a solution entry for EVERY question, even if you couldn't find the solution in the images.
-                For questions where no solution is visible, set "extractedSolution" to "No solution was found in the submission".`,
+QUESTIONS:
+
+${
+  assignmentDetails.questions
+    ?.map(
+      (q, i) => `${i + 1}. ${q.text || q.questionText || "Question " + (i + 1)}`
+    )
+    .join("\n") || "Questions not provided"
+}
+
+INSTRUCTIONS:
+
+1. Examine **all** the student's answer sheet images thoroughly — ${
+        base64Images.length
+      } images are provided.
+
+2. Extract solutions for **each** question from **any** of the images.
+3. Make sure to extract solutions for **all** questions listed above.
+4. If a solution spans across multiple images, combine the information.
+5. For each question, provide the most complete solution you can find.
+6. If you cannot find a solution for a question, indicate this explicitly.
+7. **Format all mathematical variables and equations using Markdown** (e.g., wrap inline math in \`$...$\` and display equations in \`$$...$$\`).
+
+Please return a JSON response **only** with the following exact structure (no Markdown or code fences outside of the extractedSolution strings):
+
+{
+  "questionSolutions": [
+    {
+      "questionNumber": number,
+      "extractedSolution": "The extracted solution from student's work, with all math formatted in Markdown"
+    }
+    // ...repeat for all questions, even if solution not found...
+  ]
+}
+
+**IMPORTANT:**
+
+* Return a solution entry for **every** question, even if you couldn't find the solution in the images.
+* For questions where no solution is visible, set "extractedSolution" to "No solution was found in the submission"`,
     };
 
     const imageParts = base64Images.map((imgData) => ({
@@ -137,85 +139,32 @@ export const gradeSubmission = async (base64Images, assignmentDetails) => {
       // Log the raw Gemini response text for debugging
       console.log("RAW GEMINI RESPONSE TEXT:\n", responseText);
 
-      // Clean up the response text (remove markdown formatting if present)
-      responseText = responseText.replace(/```json\s*/g, "");
-      responseText = responseText.replace(/```\s*/g, "");
-      responseText = responseText.trim();
+      // Extract JSON content from code block if present
+      const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/;
+      const match = responseText.match(jsonBlockRegex);
+      let jsonString;
+      if (match && match[1]) {
+        jsonString = match[1].trim();
+        console.log("Extracted JSON from code block:", jsonString);
+      } else {
+        jsonString = responseText.trim();
+        console.log("Assuming entire response is JSON:", jsonString);
+      }
+      // First, normalize all backslash sequences to single backslashes
+      jsonString = jsonString.replace(/\\+/g, "\\");
+      // Now convert all single backslashes to quadruple backslashes for safe JSON parsing
+      jsonString = jsonString.replace(/\\/g, "\\\\\\\\");
+      console.log("Backslash transformation for parsing:", jsonString);
 
-      console.log("Processing response text, length:", responseText.length);
-
+      let extractionResult;
       try {
-        const extractionResult = JSON.parse(responseText);
+        extractionResult = JSON.parse(jsonString);
         console.log("Successfully parsed extraction result:", {
           solutionsCount: extractionResult.questionSolutions?.length || 0,
         });
-
-        // Ensure we have an entry for every question
-        const feedbackData = [];
-        const questionCount = assignmentDetails.questions.length;
-
-        // Create a map of solutions by question number
-        const solutionMap = new Map();
-        if (extractionResult.questionSolutions?.length > 0) {
-          extractionResult.questionSolutions.forEach((solution) => {
-            solutionMap.set(
-              solution.questionNumber,
-              solution.extractedSolution ||
-                "No solution was found in the submission"
-            );
-          });
-        }
-
-        // Ensure each question has a solution
-        for (let i = 0; i < questionCount; i++) {
-          const questionNumber = i + 1;
-          const question = assignmentDetails.questions[i];
-          const questionId = question.id || questionNumber.toString();
-
-          // Get solution from map or use default
-          const solution = solutionMap.has(questionNumber)
-            ? solutionMap.get(questionNumber)
-            : "No solution was found in the submission";
-
-          feedbackData.push({
-            questionId: questionId,
-            solution: solution,
-          });
-        }
-
-        console.log("Complete mapped feedback data:", feedbackData);
-        console.log("===== EXTRACTING SOLUTIONS COMPLETE =====");
-
-        // Replace old saving logic with updateGrades API call
-        if (assignmentDetails.assignmentId && assignmentDetails.studentId) {
-          try {
-            console.log("Updating solutions via updateGrades API...");
-            await aiGradingApi.updateGrades(
-              assignmentDetails.assignmentId,
-              assignmentDetails.studentId,
-              { status: "graded", feedbackData: feedbackData }
-            );
-            console.log("Solutions updated successfully via updateGrades API");
-          } catch (err) {
-            console.error(
-              "Error updating solutions via updateGrades API:",
-              err
-            );
-          }
-        } else {
-          console.warn(
-            "Missing assignmentId or studentId, can't update solutions via API"
-          );
-        }
-
-        return {
-          success: true,
-          feedbackData: feedbackData,
-        };
       } catch (parseError) {
-        console.error("Error parsing JSON response:", parseError);
-        console.error("Raw response text:", responseText);
-
+        console.error("Error parsing transformed JSON response:", parseError);
+        console.error("Transformed JSON string:", jsonString);
         // Return a default structure in case of parsing error
         const defaultFeedback = assignmentDetails.questions.map(
           (question, i) => ({
@@ -223,12 +172,78 @@ export const gradeSubmission = async (base64Images, assignmentDetails) => {
             solution: "Error extracting solution: " + parseError.message,
           })
         );
-
         return {
           success: true,
           feedbackData: defaultFeedback,
         };
       }
+      // Post-process to revert quadruple backslashes to single in solutions
+      const replaceBackslashes = (str) => str.replace(/\\\\/g, "\\");
+      if (extractionResult.questionSolutions?.length > 0) {
+        extractionResult.questionSolutions.forEach((sol) => {
+          sol.extractedSolution = replaceBackslashes(sol.extractedSolution);
+        });
+      }
+
+      // Ensure we have an entry for every question
+      const feedbackData = [];
+      const questionCount = assignmentDetails.questions.length;
+
+      // Create a map of solutions by question number
+      const solutionMap = new Map();
+      if (extractionResult.questionSolutions?.length > 0) {
+        extractionResult.questionSolutions.forEach((solution) => {
+          solutionMap.set(
+            solution.questionNumber,
+            solution.extractedSolution ||
+              "No solution was found in the submission"
+          );
+        });
+      }
+
+      // Ensure each question has a solution
+      for (let i = 0; i < questionCount; i++) {
+        const questionNumber = i + 1;
+        const question = assignmentDetails.questions[i];
+        const questionId = question.id || questionNumber.toString();
+
+        // Get solution from map or use default
+        const solution = solutionMap.has(questionNumber)
+          ? solutionMap.get(questionNumber)
+          : "No solution was found in the submission";
+
+        feedbackData.push({
+          questionId: questionId,
+          solution: solution,
+        });
+      }
+
+      console.log("Complete mapped feedback data:", feedbackData);
+      console.log("===== EXTRACTING SOLUTIONS COMPLETE =====");
+
+      // Replace old saving logic with updateGrades API call
+      if (assignmentDetails.assignmentId && assignmentDetails.studentId) {
+        try {
+          console.log("Updating solutions via updateGrades API...");
+          await aiGradingApi.updateGrades(
+            assignmentDetails.assignmentId,
+            assignmentDetails.studentId,
+            { status: "graded", feedbackData: feedbackData }
+          );
+          console.log("Solutions updated successfully via updateGrades API");
+        } catch (err) {
+          console.error("Error updating solutions via updateGrades API:", err);
+        }
+      } else {
+        console.warn(
+          "Missing assignmentId or studentId, can't update solutions via API"
+        );
+      }
+
+      return {
+        success: true,
+        feedbackData: feedbackData,
+      };
     } else {
       console.error("Invalid API response structure:", data);
       throw new Error("Invalid response structure from API");

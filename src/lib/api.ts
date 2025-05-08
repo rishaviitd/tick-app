@@ -179,7 +179,6 @@ export const aiGradingApi = {
   // Get detailed feedback for a student's assignment
   getDetailedFeedback: (assignmentId: string, studentId: string) =>
     apiClient.get(`/ai-grading/${assignmentId}/students/${studentId}/feedback`),
-
   // Get saved steps breakdown for a student's question response
   getQuestionStepsBreakdown: (
     assignmentId: string,

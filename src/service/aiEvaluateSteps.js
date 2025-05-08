@@ -102,19 +102,47 @@ Return **ONLY** a valid JSON object (markdown formatting for variables and equat
     throw new Error("Invalid response structure from API");
   }
 
-  // Clean and parse JSON
-  const cleaned = rawText
-    .replace(/```json\s*/g, "")
-    .replace(/```/g, "")
-    .trim();
-  let result;
+  // Extract JSON content from code block if present
+  const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/;
+  const match = rawText.match(jsonBlockRegex);
+  let jsonString;
+  if (match && match[1]) {
+    jsonString = match[1].trim();
+    console.log("Extracted JSON from code block:", jsonString);
+  } else {
+    jsonString = rawText.trim();
+    console.log("Assuming entire response is JSON:", jsonString);
+  }
+  // First, normalize all backslash sequences to single backslashes
+  jsonString = jsonString.replace(/\\+/g, "\\");
+  // Now convert all single backslashes to quadruple backslashes for safe JSON parsing
+  jsonString = jsonString.replace(/\\/g, "\\\\\\\\");
+  console.log("Backslash transformation for parsing:", jsonString);
+
+  let parsed;
   try {
-    result = JSON.parse(cleaned);
+    parsed = JSON.parse(jsonString);
   } catch (err) {
-    console.error("Error parsing evaluation response:", err);
-    console.error("Raw response text:", cleaned);
+    console.error("Error parsing transformed evaluation response:", err);
+    console.error("Transformed JSON string:", jsonString);
     throw new Error("Failed to parse evaluation response: " + err.message);
   }
-
-  return result;
+  // Post-process to revert quadruple backslashes to single in strings
+  const replaceBackslashes = (str) => str.replace(/\\\\/g, "\\");
+  if (Array.isArray(parsed.stepAnalysis)) {
+    parsed.stepAnalysis = parsed.stepAnalysis.map((step) => ({
+      ...step,
+      justification: replaceBackslashes(step.justification),
+    }));
+  }
+  if (parsed.overallAssessment) {
+    if (typeof parsed.overallAssessment === "string") {
+      parsed.overallAssessment = replaceBackslashes(parsed.overallAssessment);
+    } else if (parsed.overallAssessment.summary) {
+      parsed.overallAssessment.summary = replaceBackslashes(
+        parsed.overallAssessment.summary
+      );
+    }
+  }
+  return parsed;
 };
