@@ -1226,6 +1226,35 @@ const CreateAssignment = () => {
 
   return (
     <div className="space-y-6">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="flex items-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        onClick={() => {
+          const params = new URLSearchParams(location.search);
+          const editId = params.get("edit");
+          const draftParam = params.get("draft");
+
+          if (editId) {
+            navigate(`/assignment/${editId}`);
+          } else if (draftParam) {
+            navigate("/dashboard");
+          } else if (classId) {
+            navigate(`/class/${classId}`);
+          } else {
+            navigate("/dashboard");
+          }
+        }}
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        {location.search.includes("edit=")
+          ? "Back to Assignment"
+          : location.search.includes("draft=")
+          ? "Back to Dashboard"
+          : classId
+          ? "Back to Class"
+          : "Back to Dashboard"}
+      </Button>
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight text-gray-800">
           {location.search.includes("edit=")
@@ -1244,49 +1273,8 @@ const CreateAssignment = () => {
               Log in to save progress
             </Button>
           )}
-          {isAuthenticated && (
-            <Button variant="outline" disabled>
-              <span className="text-green-500">✓</span>
-              <span className="ml-2">Authenticated</span>
-            </Button>
-          )}
         </div>
       </div>
-
-      <Button
-        variant="ghost"
-        size="sm"
-        className="flex items-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-        onClick={() => {
-          // Check the source context to determine where to navigate back to
-          const params = new URLSearchParams(location.search);
-          const editId = params.get("edit");
-          const draftParam = params.get("draft");
-
-          if (editId) {
-            // If editing an existing assignment, go back to that assignment detail
-            navigate(`/assignment/${editId}`);
-          } else if (draftParam) {
-            // If working on a draft, go back to dashboard
-            navigate("/dashboard");
-          } else if (classId) {
-            // If associated with a class, go back to class page
-            navigate(`/class/${classId}`);
-          } else {
-            // Default fallback
-            navigate("/dashboard");
-          }
-        }}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        {location.search.includes("edit=")
-          ? "Back to Assignment"
-          : location.search.includes("draft=")
-          ? "Back to Dashboard"
-          : classId
-          ? "Back to Class"
-          : "Back to Dashboard"}
-      </Button>
 
       {/* Title Input Dialog */}
       <Dialog open={showTitleDialog} onOpenChange={setShowTitleDialog}>

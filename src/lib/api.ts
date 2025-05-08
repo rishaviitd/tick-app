@@ -65,6 +65,12 @@ export const assignmentApi = {
   getAvailableStudents: (assignmentId: string) =>
     apiClient.get(`/assignments/${assignmentId}/availableStudents`),
 
+  // Get rubric for a specific question in an assignment
+  getQuestionRubric: (assignmentId: string, questionId: string) =>
+    apiClient.get(
+      `/assignments/${assignmentId}/questions/${questionId}/rubric`
+    ),
+
   // Create new assignment
   create: (data: any) => apiClient.post("/assignments", data),
 
@@ -83,6 +89,18 @@ export const assignmentApi = {
   // Retry grading
   retryGrading: (assignmentId: string, studentId: string) =>
     apiClient.post(`/assignments/${assignmentId}/students/${studentId}/retry`),
+
+  // Save AI steps breakdown for a student's question response
+  saveQuestionStepsBreakdown: (
+    assignmentId: string,
+    studentId: string,
+    questionId: string,
+    breakdown: { studentThoughtProcess: string; steps: any[] }
+  ) =>
+    apiClient.post(
+      `/assignments/${assignmentId}/students/${studentId}/questions/${questionId}/stepsBreakdown`,
+      breakdown
+    ),
 
   // Assignment draft operations
   saveDraft: (data: any) => apiClient.post("/assignments/drafts", data),
@@ -161,6 +179,35 @@ export const aiGradingApi = {
   // Get detailed feedback for a student's assignment
   getDetailedFeedback: (assignmentId: string, studentId: string) =>
     apiClient.get(`/ai-grading/${assignmentId}/students/${studentId}/feedback`),
+
+  // Get saved steps breakdown for a student's question response
+  getQuestionStepsBreakdown: (
+    assignmentId: string,
+    studentId: string,
+    questionId: string
+  ) =>
+    apiClient.get(
+      `/ai-grading/${assignmentId}/students/${studentId}/questions/${questionId}/stepsBreakdown`
+    ),
+
+  // Evaluate steps and overall assessment for a student's question response
+  evaluatedSteps: (
+    assignmentId: string,
+    studentId: string,
+    questionId: string,
+    data: {
+      overallAssessment: string;
+      evaluatedSteps: {
+        stepNumber: number;
+        status: string;
+        justification: string;
+      }[];
+    }
+  ) =>
+    apiClient.post(
+      `/ai-grading/${assignmentId}/students/${studentId}/questions/${questionId}/evaluatedSteps`,
+      data
+    ),
 };
 
 export default apiClient;

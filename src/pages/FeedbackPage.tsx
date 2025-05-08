@@ -19,6 +19,8 @@ import { aiGradingApi, assignmentApi } from "@/lib/api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { bulkBreakdownSolutionSteps } from "@/service/aiBulkStepsBreakdownService";
+import { bulkEvaluateSolutionSteps } from "@/service/aiBulkEvaluateSolutionStepsService";
 
 interface QuestionSolution {
   questionId: string;
@@ -49,6 +51,9 @@ function FeedbackPage() {
     questions: { questionText?: string; text?: string }[];
   } | null>(null);
   const [activeTab, setActiveTab] = useState("solutions");
+  const [breakdowns, setBreakdowns] = useState<Record<string, any>>({});
+  const [breakdownsLoading, setBreakdownsLoading] = useState(false);
+  const [breakdownsError, setBreakdownsError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -91,8 +96,98 @@ function FeedbackPage() {
     loadData();
   }, [assignmentId, studentId]);
 
+  // Load step breakdowns and evaluations once solutions are available
+  useEffect(() => {
+    const fetchBreakdowns = async () => {
+      if (!solutions) return;
+      setBreakdownsLoading(true);
+      try {
+        const results = await Promise.all(
+          solutions.questionResponses.map((q) =>
+            aiGradingApi
+              .getQuestionStepsBreakdown(
+                assignmentId!,
+                studentId!,
+                q.questionId
+              )
+              .then((res) => ({
+                questionId: q.questionId,
+                data: res.data.data,
+              }))
+              .catch((err) => {
+                console.error(
+                  `Error loading breakdown for question ${q.questionId}:`,
+                  err
+                );
+                return { questionId: q.questionId, data: null };
+              })
+          )
+        );
+        const map: Record<string, any> = {};
+        results.forEach((r) => {
+          if (r.data) {
+            map[r.questionId] = r.data;
+          }
+        });
+        setBreakdowns(map);
+      } catch (err: any) {
+        console.error("Error fetching breakdowns:", err);
+        setBreakdownsError(err.message || "Failed to load breakdowns");
+      } finally {
+        setBreakdownsLoading(false);
+      }
+    };
+    fetchBreakdowns();
+  }, [solutions, assignmentId, studentId]);
+
   const handleBackClick = () => {
     navigate(`/assignment/${assignmentId}`);
+  };
+
+  // Handler to test steps breakdown
+  const handleTestBreakdown = () => {
+    if (!solutions) return;
+    console.log("Initiating bulk steps breakdown...");
+    const promises = bulkBreakdownSolutionSteps(
+      assignmentId!,
+      studentId!,
+      solutions.questionResponses
+    );
+    promises.forEach((promise, idx) => {
+      promise
+        .then(({ breakdown }) => {
+          console.log(`Breakdown for Question ${idx + 1}:`, breakdown);
+        })
+        .catch((error) => {
+          console.error(
+            `Error during breakdown for Question ${idx + 1}:`,
+            error
+          );
+        });
+    });
+  };
+
+  // Handler to evaluate steps (stub)
+  const handleEvaluateSteps = () => {
+    if (!solutions) return;
+    console.log("Initiating bulk steps evaluation...");
+    const promises = bulkEvaluateSolutionSteps(
+      assignmentId!,
+      studentId!,
+      solutions.questionResponses
+    );
+    promises.forEach((promise, idx) => {
+      promise
+        .then(({ evaluation }) => {
+          console.log(`Evaluation for Question ${idx + 1}:`, evaluation);
+        })
+        .catch((error) => {
+          console.error(
+            `Error during evaluation for Question ${idx + 1}:`,
+            error
+          );
+        });
+    });
   };
 
   // Loading state
@@ -164,6 +259,14 @@ function FeedbackPage() {
           <h1 className="text-2xl font-bold">{solutions.assignmentTitle}</h1>
           <p className="text-muted-foreground">{solutions.studentName}</p>
         </div>
+        <div className="flex space-x-2">
+          <Button variant="outline" size="sm" onClick={handleTestBreakdown}>
+            Test Steps Breakdown
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleEvaluateSteps}>
+            Evaluate Steps
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -220,6 +323,100 @@ function FeedbackPage() {
                             </div>
                           )}
                         </div>
+
+                        {hasSolution && (
+                          <div className="mt-4">
+                            <h4 className="text-sm font-medium mb-1">
+                              Steps Breakdown & Evaluation
+                            </h4>
+                            {breakdownsLoading ? (
+                              <div className="flex items-center text-sm text-muted-foreground">
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Loading steps...
+                              </div>
+                            ) : breakdowns[question.questionId] ? (
+                              <>
+                                <p className="text-xs italic mb-2 bg-slate-50 p-2 rounded-md whitespace-pre-wrap">
+                                  {
+                                    breakdowns[question.questionId]
+                                      .studentThoughtProcess
+                                  }
+                                </p>
+                                <ul className="space-y-2">
+                                  {breakdowns[question.questionId].steps.map(
+                                    (step: any) => {
+                                      const status = step.status || "";
+                                      const justification =
+                                        step.justification || "";
+                                      let statusColor = "text-gray-700";
+                                      if (status.toLowerCase() === "correct")
+                                        statusColor = "text-green-600";
+                                      if (status.toLowerCase() === "incorrect")
+                                        statusColor = "text-red-600";
+                                      if (
+                                        status
+                                          .toLowerCase()
+                                          .includes("partially")
+                                      )
+                                        statusColor = "text-yellow-600";
+                                      return (
+                                        <li
+                                          key={step.stepNumber}
+                                          className="border p-2 rounded-md"
+                                        >
+                                          <div className="flex justify-between items-center">
+                                            <span
+                                              className={`font-semibold ${statusColor}`}
+                                            >
+                                              {status
+                                                ? status.toUpperCase()
+                                                : "STEP"}
+                                            </span>
+                                            <span className="text-xs font-medium">
+                                              Step {step.stepNumber}
+                                            </span>
+                                          </div>
+                                          <p className="text-sm">
+                                            <strong>Work:</strong>{" "}
+                                            {step.studentWork}
+                                          </p>
+                                          <p className="text-sm">
+                                            <strong>Intent:</strong>{" "}
+                                            {step.studentIntent}
+                                          </p>
+                                          {justification && (
+                                            <p className="text-sm italic">
+                                              <strong>Justification:</strong>{" "}
+                                              {justification}
+                                            </p>
+                                          )}
+                                        </li>
+                                      );
+                                    }
+                                  )}
+                                </ul>
+                                {breakdowns[question.questionId]
+                                  .overallAssessment && (
+                                  <div className="mt-3 bg-slate-50 p-3 rounded-md">
+                                    <h4 className="font-medium text-sm">
+                                      Overall Assessment
+                                    </h4>
+                                    <p className="text-sm">
+                                      {
+                                        breakdowns[question.questionId]
+                                          .overallAssessment
+                                      }
+                                    </p>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                No breakdown available.
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

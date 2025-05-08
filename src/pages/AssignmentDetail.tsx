@@ -53,6 +53,7 @@ import {
   gradeSubmission,
   updateGradingStatus,
 } from "@/service/aiGradingService";
+import { orchestrateSolutionAssessment } from "@/service/aiOrchestrationService";
 import { AssignmentDetail, StudentAssignment } from "@/types/class";
 
 const AssignmentDetailPage = () => {
@@ -677,25 +678,42 @@ const AssignmentDetailPage = () => {
         );
       }
 
-      // After successful grading, update the status to graded immediately in the UI
+      // 5. Orchestrate breakdown and evaluation of solution steps
+      const questionResponses = gradingResponse.feedbackData.map((f) => {
+        const metaQ = assignment.questions.find((q) => q._id === f.questionId);
+        return {
+          questionId: f.questionId,
+          questionText: metaQ?.text || "",
+          solution: f.solution,
+        };
+      });
+      await orchestrateSolutionAssessment(
+        assignmentId!,
+        studentId,
+        questionResponses
+      );
+
+      // 6. Update student status to 'graded' in backend
+      await assignmentApi.updateStudentAssignment(assignmentId, studentId, {
+        status: "graded",
+      });
+
+      // Update UI to reflect graded status
       setAssignment(
         (prev) =>
           prev && {
             ...prev,
             students: prev.students.map((s) =>
               s.studentId === studentId
-                ? {
-                    ...s,
-                    status: "graded" as const, // Changed from "completed" to "graded"
-                  }
+                ? { ...s, status: "graded" as const }
                 : s
             ),
           }
       );
 
       toast({
-        title: "Processing Complete",
-        description: `${studentName}'s submission has been processed and solutions saved.`,
+        title: "Grading Complete",
+        description: `${studentName}'s solutions have been graded.`,
       });
     } catch (error: any) {
       console.error("Error processing submission:", error);
