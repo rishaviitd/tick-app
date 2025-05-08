@@ -50,14 +50,12 @@ Return **ONLY** a valid JSON object (markdown formatting for variables and equat
       "stepNumber": 1,
       "status": "Correct/Incorrect/Partially Correct",
       "justification": "Brief explanation",
-      "skillPoints": ["list", "of", "demonstrated", "skills"]
     }
     // …additional steps…
   ],
   "overallAssessment": {
     "summary": "Brief overall assessment",
-    "score": "1-5",
-    "correctness": "Mostly Correct/Partially Correct/Incorrect"
+    "score": "number [based on the rubric]",
   }
 }`;
 
