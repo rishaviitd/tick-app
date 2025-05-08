@@ -17,62 +17,6 @@ interface Class {
 }
 
 // Debug component to test API calls
-const ApiDebugger = () => {
-  const { token, user } = useAuth();
-  const [apiResponse, setApiResponse] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const testClassesApi = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      console.log("Testing API with axios client");
-
-      // Use the axios API client to fetch classes
-      const response = await apiClient.get(`/classes?teacher=${user?.id}`);
-      console.log("Classes API response:", response.data);
-
-      setApiResponse(response.data);
-    } catch (err) {
-      console.error("API test error:", err);
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="mt-8 p-4 border border-red-300 rounded-md bg-red-50">
-      <h3 className="font-bold text-red-800 mb-2">API Debugger</h3>
-      <div className="mb-2">
-        <Button
-          onClick={testClassesApi}
-          disabled={isLoading}
-          variant="outline"
-          className="bg-white text-red-700 border-red-700"
-        >
-          Test Classes API
-        </Button>
-      </div>
-
-      {isLoading && <p className="text-gray-600">Testing API...</p>}
-
-      {error && (
-        <div className="mt-2 p-2 bg-red-100 border border-red-600 rounded">
-          <p className="text-red-800">{error}</p>
-        </div>
-      )}
-
-      {apiResponse && (
-        <div className="mt-2 overflow-auto max-h-48">
-          <pre className="text-xs">{JSON.stringify(apiResponse, null, 2)}</pre>
-        </div>
-      )}
-    </div>
-  );
-};
 
 const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();

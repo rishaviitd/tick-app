@@ -19,6 +19,10 @@ import { aiGradingApi, assignmentApi } from "@/lib/api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 
 interface QuestionSolution {
   questionId: string;
@@ -242,9 +246,14 @@ function FeedbackPage() {
                           <h3 className="font-medium text-lg mb-2">
                             Question {index + 1}
                           </h3>
-                          <p className="text-sm bg-muted p-2 rounded-md">
-                            {question.questionText}
-                          </p>
+                          <div className="text-sm bg-muted p-2 rounded-md">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkMath]}
+                              rehypePlugins={[rehypeKatex]}
+                            >
+                              {question.questionText}
+                            </ReactMarkdown>
+                          </div>
                         </div>
 
                         <div>
