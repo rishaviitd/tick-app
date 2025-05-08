@@ -31,42 +31,44 @@ export const gradeSubmission = async (base64Images, assignmentDetails) => {
     // Prepare the parts for the Gemini API request
     const promptPart = {
       text: `You are helping to extract student solutions from answer sheet images.
+                
+                
+                
+                QUESTIONS:
+                ${
+                  assignmentDetails.questions
+                    ?.map(
+                      (q, i) =>
+                        `${i + 1}. ${
+                          q.text || q.questionText || "Question " + (i + 1)
+                        }`
+                    )
+                    .join("\n") || "Questions not provided"
+                }
+                
+                INSTRUCTIONS:
+                1. Examine ALL the student's answer sheet images thoroughly - ${
+                  base64Images.length
+                } images are provided.
+                2. Extract solutions for EACH question from ANY of the images.
+                3. Make sure to extract solutions for ALL questions listed above.
+                4. If a solution spans across multiple images, combine the information.
+                5. For each question, provide the most complete solution you can find.
+                6. If you cannot find a solution for a question, indicate this explicitly.
+                
+                Please return a JSON response **only** with the following exact structure (no markdown or code fences):
+                {
+                  "questionSolutions": [
+                    {
+                      "questionNumber": number,
+                      "extractedSolution": "The extracted solution from student's work"
+                    },
+                    ... (repeat for all questions, even if solution not found) ...
+                  ]
+                }
 
-QUESTIONS:
-
-${
-  assignmentDetails.questions
-    ?.map((q, i) => `${i + 1}. ${q.text || "Question " + (i + 1)}`)
-    .join("\n") || "Questions not provided"
-}
-
-INSTRUCTIONS:
-1. Examine **all** the student's answer sheet images thoroughly — ${
-        base64Images.length
-      } images are provided.
-2. Extract solutions for **each** question from **any** of the images.
-3. Make sure to extract solutions for **all** questions listed above.
-4. If a solution spans across multiple images, combine the information.
-5. For each question, provide the most complete solution you can find.
-6. If you cannot find a solution for a question, indicate this explicitly.
-7. **Format all mathematical variables and equations using Markdown** (e.g., wrap inline math in $...$ and display equations in $$...$$).
-
-Please return a JSON response only with the following exact structure (no Markdown or code fences outside of the extractedSolution values):
-
-{
-  "questionSolutions": [
-    {
-      "questionNumber": number,
-      "extractedSolution": "The extracted solution from student's work, with all math formatted in Markdown"
-    }
-    // ...repeat for all questions, even if solution not found...
-  ]
-}
-
-IMPORTANT:
-* Return a solution entry for **every** question, even if you couldn't find the solution in the images.
-* For questions where no solution is visible, set "extractedSolution" to "No solution was found in the submission".
-`,
+                IMPORTANT: Return a solution entry for EVERY question, even if you couldn't find the solution in the images.
+                For questions where no solution is visible, set "extractedSolution" to "No solution was found in the submission".`,
     };
 
     const imageParts = base64Images.map((imgData) => ({
