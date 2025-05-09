@@ -28,7 +28,7 @@ export const orchestrateSolutionAssessment = async (
         // 1. Breakdown steps
         const breakdown = await breakdownSolutionSteps(questionText, solution);
         // Save breakdown to backend
-        await assignmentApi.saveQuestionStepsBreakdown(
+        await aiGradingApi.saveQuestionStepsBreakdown(
           assignmentId,
           studentId,
           questionId,

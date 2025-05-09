@@ -3,7 +3,7 @@
  * Sends breakdownSolutionSteps requests in parallel for multiple questions.
  */
 import { breakdownSolutionSteps } from "./aiStepsBreakdownService";
-import { assignmentApi } from "@/lib/api";
+import { aiGradingApi } from "@/lib/api";
 
 /**
  * Fire parallel breakdown requests for an array of question responses and save to backend.
@@ -20,7 +20,7 @@ export const bulkBreakdownSolutionSteps = (
   return questionResponses.map(({ questionId, questionText, solution }, idx) =>
     breakdownSolutionSteps(questionText, solution).then((breakdown) => {
       // Save breakdown via assignmentApi helper
-      assignmentApi
+      aiGradingApi
         .saveQuestionStepsBreakdown(
           assignmentId,
           studentId,

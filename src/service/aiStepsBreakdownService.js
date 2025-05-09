@@ -7,7 +7,7 @@
  * Break down a student's solution into steps.
  * @param {string} questionText - The text of the question.
  * @param {string} studentSolution - The extracted solution text from the student.
- * @returns {Object} The breakdown with studentThoughtProcess and steps.
+ * @returns {Object} The breakdown with steps array.
  */
 export const breakdownSolutionSteps = async (questionText, studentSolution) => {
   console.log("===== BREAKDOWN SOLUTION STEPS START =====");

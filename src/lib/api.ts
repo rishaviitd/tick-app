@@ -90,18 +90,6 @@ export const assignmentApi = {
   retryGrading: (assignmentId: string, studentId: string) =>
     apiClient.post(`/assignments/${assignmentId}/students/${studentId}/retry`),
 
-  // Save AI steps breakdown for a student's question response
-  saveQuestionStepsBreakdown: (
-    assignmentId: string,
-    studentId: string,
-    questionId: string,
-    breakdown: { studentThoughtProcess: string; steps: any[] }
-  ) =>
-    apiClient.post(
-      `/assignments/${assignmentId}/students/${studentId}/questions/${questionId}/stepsBreakdown`,
-      breakdown
-    ),
-
   // Assignment draft operations
   saveDraft: (data: any) => apiClient.post("/assignments/drafts", data),
   getAllDrafts: () => apiClient.get("/assignments/drafts"),
@@ -179,6 +167,7 @@ export const aiGradingApi = {
   // Get detailed feedback for a student's assignment
   getDetailedFeedback: (assignmentId: string, studentId: string) =>
     apiClient.get(`/ai-grading/${assignmentId}/students/${studentId}/feedback`),
+
   // Get saved steps breakdown for a student's question response
   getQuestionStepsBreakdown: (
     assignmentId: string,
@@ -187,6 +176,18 @@ export const aiGradingApi = {
   ) =>
     apiClient.get(
       `/ai-grading/${assignmentId}/students/${studentId}/questions/${questionId}/stepsBreakdown`
+    ),
+
+  // Save AI steps breakdown for a student's question response
+  saveQuestionStepsBreakdown: (
+    assignmentId: string,
+    studentId: string,
+    questionId: string,
+    breakdown: { steps: any[] }
+  ) =>
+    apiClient.post(
+      `/ai-grading/${assignmentId}/students/${studentId}/questions/${questionId}/stepsBreakdown`,
+      breakdown
     ),
 
   // Evaluate steps and overall assessment for a student's question response
