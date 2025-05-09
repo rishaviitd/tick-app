@@ -339,9 +339,6 @@ function FeedbackPage() {
                                                 ? status.toUpperCase()
                                                 : "STEP"}
                                             </span>
-                                            <span className="text-xs font-medium">
-                                              Step {step.stepNumber}
-                                            </span>
                                           </div>
                                           <div className="text-sm whitespace-pre-wrap">
                                             <strong>Work:</strong>{" "}
@@ -357,10 +354,7 @@ function FeedbackPage() {
                                               )}
                                             </ReactMarkdown>
                                           </div>
-                                          <p className="text-sm">
-                                            <strong>Intent:</strong>{" "}
-                                            {step.studentIntent}
-                                          </p>
+
                                           {justification && (
                                             <div className="text-sm italic whitespace-pre-wrap">
                                               <strong>Justification:</strong>{" "}
