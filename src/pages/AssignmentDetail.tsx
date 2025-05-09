@@ -78,6 +78,9 @@ const AssignmentDetailPage = () => {
   const [assigningStudentId, setAssigningStudentId] = useState<string | null>(
     null
   );
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
 
   // Helper to test Gemini API connection
 
@@ -229,7 +232,7 @@ const AssignmentDetailPage = () => {
     fetchAvailableStudents();
   }, [assignmentId, assignment?.students]);
 
-  const handleShareResults = async () => {
+  const handleShareResults = () => {
     if (!assignment || !assignmentId) return;
 
     if (selectedStudents.length === 0) {
@@ -241,33 +244,28 @@ const AssignmentDetailPage = () => {
       return;
     }
 
-    try {
-      // Update each selected student's assignment to be shared
-      const updatePromises = selectedStudents.map((studentId) =>
-        assignmentApi.updateStudentAssignment(assignmentId, studentId, {
-          isShared: true,
-        })
-      );
+    // Show the share dialog instead of immediately sharing
+    setShowShareDialog(true);
+  };
 
-      await Promise.all(updatePromises);
+  const confirmShareResults = async () => {
+    if (!assignment || !assignmentId) return;
 
-      toast({
-        title: "Results Shared",
-        description: `Results shared with ${selectedStudents.length} student(s)`,
-      });
+    // Start the animation
+    setIsSharing(true);
+    setShareSuccess(true);
 
-      // Refresh assignment data
-      window.location.reload();
-    } catch (err) {
-      console.error("Error sharing results:", err);
-      toast({
-        title: "Sharing Failed",
-        description: "There was a problem sharing the results",
-        variant: "destructive",
-      });
-    }
-
-    setSelectedStudents([]);
+    // Wait for animation to complete, then close dialog
+    setTimeout(() => {
+      // Wait a moment to show the success state before closing
+      setTimeout(() => {
+        // Reset states and close dialog
+        setIsSharing(false);
+        setShareSuccess(false);
+        setShowShareDialog(false);
+        setSelectedStudents([]);
+      }, 1500);
+    }, 2500); // Allow animation to play longer (2.5s) for better visual effect
   };
 
   const handleEditAssignment = () => {
@@ -1215,6 +1213,126 @@ const AssignmentDetailPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Share Results Confirmation Dialog */}
+      <Dialog
+        open={showShareDialog}
+        onOpenChange={(open) => {
+          if (!isSharing) {
+            setShowShareDialog(open);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md overflow-hidden">
+          {/* Success Animation Overlay */}
+          <div
+            className={`absolute inset-0 flex flex-col items-center justify-center bg-green-500 z-50 transition-all duration-700 ${
+              shareSuccess ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+            style={{ borderRadius: "inherit" }}
+          >
+            <div className="flex flex-col items-center justify-center">
+              <div className="relative flex items-center justify-center mb-6">
+                {/* Pulse effect behind the circle */}
+                <div
+                  className={`absolute rounded-full bg-white/30 ${
+                    shareSuccess ? "animate-pulse-ring-once" : "opacity-0"
+                  }`}
+                  style={{ height: "100px", width: "100px" }}
+                ></div>
+
+                {/* White circular background that scales up */}
+                <div
+                  className={`absolute bg-white rounded-full ${
+                    shareSuccess ? "animate-scale-up" : "opacity-0"
+                  }`}
+                  style={{ height: "80px", width: "80px" }}
+                ></div>
+
+                {/* Checkmark SVG with animation */}
+                <svg
+                  className={`relative h-12 w-12 text-green-500 ${
+                    shareSuccess ? "animate-check-mark" : "opacity-0"
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={3}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+
+              {/* Results shared text */}
+              <h2
+                className={`text-white font-bold text-xl transition-opacity duration-500 ${
+                  shareSuccess ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                Results Shared
+              </h2>
+            </div>
+          </div>
+
+          <DialogHeader>
+            <DialogTitle>Share Results</DialogTitle>
+            <DialogDescription>
+              Results will be shared with the following students:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 max-h-[200px] overflow-y-auto">
+            <div className="space-y-2">
+              {assignment &&
+                selectedStudents.map((studentId) => {
+                  const student = assignment.students.find(
+                    (s) => s.studentId === studentId
+                  );
+                  return (
+                    <div
+                      key={studentId}
+                      className="p-3 bg-muted rounded-md flex items-center space-x-2"
+                    >
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span>{student?.studentName || studentId}</span>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-between sm:justify-between mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setShowShareDialog(false)}
+              disabled={isSharing}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmShareResults}
+              className="bg-primary hover:bg-primary/90"
+              disabled={isSharing}
+            >
+              {isSharing ? (
+                <div className="flex items-center">
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sharing...
+                </div>
+              ) : (
+                <>
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share Results
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -59,6 +59,70 @@
   }
 }
 
+/* Share Results Success Animations */
+@keyframes scale-up {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes check-mark {
+  0% {
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+.animate-scale-up {
+  animation: scale-up 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.animate-check-mark {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: check-mark 0.8s cubic-bezier(0.65, 0, 0.45, 1) forwards 0.2s;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
+  animation-iteration-count: infinite;
+}
+
+.animate-pulse-ring-once {
+  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
+  animation-iteration-count: 1;
+}
+
 .fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
@@ -98,7 +162,7 @@
 }
 
 .bottom-nav-item.active::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 0;
   left: 50%;
