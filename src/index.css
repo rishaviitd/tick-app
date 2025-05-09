@@ -38,10 +38,11 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-tap-highlight-color: transparent;
   }
@@ -129,11 +130,22 @@
 
 /* Custom Component Styles */
 .upload-dropzone {
-  @apply border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center transition-colors;
+  border-width: 2px;
+  border-style: dashed;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition-property: color, background-color, border-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }
 
 .upload-dropzone.active {
-  @apply border-primary bg-primary/5;
+  border-color: hsl(var(--primary));
+  background-color: hsla(var(--primary), 0.05);
 }
 
 /* Sidebar Colors */
@@ -148,7 +160,8 @@
 }
 
 .sidebar {
-  @apply bg-sidebar text-sidebar-foreground;
+  background-color: hsl(var(--sidebar-background));
+  color: hsl(var(--sidebar-foreground));
 }
 
 /* Bottom Navigation Animation */
@@ -170,5 +183,5 @@
   width: 20px;
   height: 3px;
   border-radius: 1.5px;
-  @apply bg-primary;
+  background-color: hsl(var(--primary));
 }
