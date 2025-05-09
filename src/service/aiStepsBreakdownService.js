@@ -30,8 +30,7 @@ Return ONLY a valid JSON object (with markdown formatting for mathematical terms
   "steps": [
     {
       "stepNumber": 1,
-      "studentWork": "Exact text/equation from student's work",
-      "studentIntent": "What the student was trying to accomplish"
+      "studentWork": "Exact text/equation from student's work"
     }
     ... (repeat for all steps) ...
 
