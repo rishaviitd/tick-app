@@ -51,16 +51,18 @@ export const orchestrateSolutionAssessment = async (
             justification,
           })
         );
-        // Prepare overall assessment string
-        const overallAssessmentStr =
+        // Prepare overall assessment payload
+        const overallAssessmentPayload =
           typeof evaluationResult.overallAssessment === "string"
-            ? evaluationResult.overallAssessment
-            : evaluationResult.overallAssessment.summary ||
-              JSON.stringify(evaluationResult.overallAssessment);
+            ? { summary: evaluationResult.overallAssessment, score: 0 }
+            : {
+                summary: evaluationResult.overallAssessment.summary,
+                score: evaluationResult.overallAssessment.score,
+              };
 
         // Save evaluation to backend
         await aiGradingApi.evaluatedSteps(assignmentId, studentId, questionId, {
-          overallAssessment: overallAssessmentStr,
+          overallAssessment: overallAssessmentPayload,
           evaluatedSteps: evaluatedStepsPayload,
         });
 

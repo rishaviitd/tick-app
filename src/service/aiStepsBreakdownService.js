@@ -11,8 +11,6 @@
  */
 export const breakdownSolutionSteps = async (questionText, studentSolution) => {
   console.log("===== BREAKDOWN SOLUTION STEPS START =====");
-  console.log("Question:", questionText);
-  console.log("Student solution:", studentSolution);
 
   if (!questionText || !studentSolution) {
     console.error("Missing question text or student solution");
@@ -37,8 +35,7 @@ Return ONLY a valid JSON object (with markdown formatting for mathematical terms
     }
     ... (repeat for all steps) ...
 
-  ],
-"studentThoughtProcess": "Brief overview of student's approach"
+  ]
 }
 
 Important: Do not modify or improve the steps. Report exactly what the student wrote.
@@ -90,7 +87,6 @@ Important: Do not modify or improve the steps. Report exactly what the student w
   }
 
   const data = await response.json();
-  console.log("Gemini API Response received");
 
   const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!rawText) {
@@ -98,23 +94,20 @@ Important: Do not modify or improve the steps. Report exactly what the student w
     throw new Error("Invalid response structure from API");
   }
 
-  console.log("RAW RESPONSE TEXT:\n", rawText);
   // Extract JSON content from code block if present
   const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/;
   const match = rawText.match(jsonBlockRegex);
   let jsonString;
   if (match && match[1]) {
     jsonString = match[1].trim();
-    console.log("Extracted JSON from code block:", jsonString);
   } else {
     jsonString = rawText.trim();
-    console.log("Assuming entire response is JSON:", jsonString);
   }
   // First, normalize all backslash sequences to single backslashes
   jsonString = jsonString.replace(/\\+/g, "\\");
   // Now convert all single backslashes to quadruple backslashes for safe JSON parsing
   jsonString = jsonString.replace(/\\/g, "\\\\\\\\");
-  console.log("Backslash transformation for parsing:", jsonString);
+  console.log("Backslas", jsonString);
 
   let parsed;
   try {
@@ -128,22 +121,12 @@ Important: Do not modify or improve the steps. Report exactly what the student w
   }
   // Post-process to revert quadruple backslashes to double in strings
   const replaceBackslashes = (str) => str.replace(/\\\\/g, "\\");
-  if (parsed.studentThoughtProcess) {
-    parsed.studentThoughtProcess = replaceBackslashes(
-      parsed.studentThoughtProcess
-    );
-  }
+
   if (Array.isArray(parsed.steps)) {
     parsed.steps = parsed.steps.map((step) => ({
       stepNumber: step.stepNumber,
       studentWork: replaceBackslashes(step.studentWork),
-      studentIntent: replaceBackslashes(step.studentIntent),
     }));
   }
-  console.log(
-    "Successfully parsed and post-processed step breakdown result:",
-    parsed
-  );
-  console.log("===== BREAKDOWN SOLUTION STEPS COMPLETE =====");
   return parsed;
 };

@@ -195,7 +195,7 @@ export const aiGradingApi = {
     studentId: string,
     questionId: string,
     data: {
-      overallAssessment: string;
+      overallAssessment: { summary: string; score: number };
       evaluatedSteps: {
         stepNumber: number;
         status: string;

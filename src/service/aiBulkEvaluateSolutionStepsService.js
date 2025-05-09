@@ -34,15 +34,17 @@ export const bulkEvaluateSolutionSteps = (
             justification,
           })
         );
-        const overallAssessmentStr =
+        const overallAssessmentPayload =
           typeof result.overallAssessment === "string"
-            ? result.overallAssessment
-            : result.overallAssessment.summary ||
-              JSON.stringify(result.overallAssessment);
+            ? { summary: result.overallAssessment, score: 0 }
+            : {
+                summary: result.overallAssessment.summary,
+                score: result.overallAssessment.score,
+              };
         // Save evaluated steps to backend
         return aiGradingApi
           .evaluatedSteps(assignmentId, studentId, questionId, {
-            overallAssessment: overallAssessmentStr,
+            overallAssessment: overallAssessmentPayload,
             evaluatedSteps: evaluatedStepsPayload,
           })
           .then(() => ({ questionId, questionIndex: idx, evaluation: result }));
