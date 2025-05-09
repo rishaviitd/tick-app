@@ -506,28 +506,157 @@ const AssignmentDetailPage = () => {
     if (!assignmentId) return null;
 
     try {
+      console.log(`Fetching feedback for student ${studentId}`);
+
       // Get detailed feedback for this student's assignment
       const feedbackResponse = await aiGradingApi.getDetailedFeedback(
         assignmentId,
         studentId
       );
 
+      // Log the complete response for debugging
+      console.log("Complete feedback API response:", feedbackResponse);
+
       if (feedbackResponse.data?.success) {
         const feedbackData = feedbackResponse.data.data;
+        console.log(
+          "Feedback data structure:",
+          JSON.stringify(feedbackData, null, 2)
+        );
 
         // If there's a direct totalScore property, use that
         if (typeof feedbackData.totalScore === "number") {
+          console.log(`Using provided totalScore: ${feedbackData.totalScore}`);
           return feedbackData.totalScore;
         }
 
-        // Otherwise sum up scores from individual questions
+        console.log("No totalScore found, checking for questionFeedback array");
+
+        // Check for different possible feedback structures
         if (Array.isArray(feedbackData.questionFeedback)) {
+          console.log(
+            "QuestionFeedback array found:",
+            feedbackData.questionFeedback
+          );
+
           const totalScore = feedbackData.questionFeedback.reduce(
-            (sum: number, question: any) => sum + (question.score || 0),
+            (sum: number, question: any) => {
+              const questionScore = question.score || 0;
+              console.log(
+                `Question ID: ${question.questionId}, Score: ${questionScore}`
+              );
+              return sum + questionScore;
+            },
             0
+          );
+
+          console.log(
+            `Calculated total score from questionFeedback: ${totalScore}`
+          );
+          return totalScore;
+        } else if (Array.isArray(feedbackData.feedback)) {
+          console.log("Feedback array found:", feedbackData.feedback);
+
+          const totalScore = feedbackData.feedback.reduce(
+            (sum: number, question: any) => {
+              const questionScore = question.score || 0;
+              console.log(
+                `Question ID: ${question.questionId}, Score: ${questionScore}`
+              );
+              return sum + questionScore;
+            },
+            0
+          );
+
+          console.log(
+            `Calculated total score from feedback array: ${totalScore}`
+          );
+          return totalScore;
+        } else if (
+          feedbackData.questions &&
+          Array.isArray(feedbackData.questions)
+        ) {
+          console.log("Questions array found:", feedbackData.questions);
+
+          const totalScore = feedbackData.questions.reduce(
+            (sum: number, question: any) => {
+              const questionScore = question.score || 0;
+              console.log(
+                `Question ID: ${
+                  question.id || question.questionId
+                }, Score: ${questionScore}`
+              );
+              return sum + questionScore;
+            },
+            0
+          );
+
+          console.log(
+            `Calculated total score from questions array: ${totalScore}`
+          );
+          return totalScore;
+        } else if (
+          feedbackData.evaluations &&
+          Array.isArray(feedbackData.evaluations)
+        ) {
+          console.log("Evaluations array found:", feedbackData.evaluations);
+
+          const totalScore = feedbackData.evaluations.reduce(
+            (sum: number, evaluation: any) => {
+              const questionScore = evaluation.score || 0;
+              console.log(
+                `Evaluation for question: ${evaluation.questionId}, Score: ${questionScore}`
+              );
+              return sum + questionScore;
+            },
+            0
+          );
+
+          console.log(
+            `Calculated total score from evaluations array: ${totalScore}`
           );
           return totalScore;
         }
+
+        // If we reached here, no recognizable score structure was found
+        console.warn(
+          "Could not find any score information in the feedback data. Raw data:",
+          feedbackData
+        );
+
+        // As a last resort, search for score properties in the object
+        const scores: number[] = [];
+        const searchForScores = (obj: any, path = "") => {
+          if (!obj || typeof obj !== "object") return;
+
+          Object.entries(obj).forEach(([key, value]) => {
+            const currentPath = path ? `${path}.${key}` : key;
+
+            if (key === "score" && typeof value === "number") {
+              console.log(`Found score at path ${currentPath}: ${value}`);
+              scores.push(value);
+            }
+
+            if (value && typeof value === "object") {
+              searchForScores(value, currentPath);
+            }
+          });
+        };
+
+        searchForScores(feedbackData);
+
+        if (scores.length > 0) {
+          const totalScore = scores.reduce((sum, score) => sum + score, 0);
+          console.log(
+            `Found ${scores.length} score values, total: ${totalScore}`
+          );
+          return totalScore;
+        }
+      } else {
+        console.error(
+          "Feedback API response was not successful:",
+          feedbackResponse.data
+        );
       }
 
       return null;
