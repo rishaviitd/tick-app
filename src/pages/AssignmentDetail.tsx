@@ -422,35 +422,30 @@ const AssignmentDetailPage = () => {
                 `Grading complete for ${studentName}, fetching details...`
               );
 
-              // Get detailed feedback including scores
-              const feedbackResponse = await aiGradingApi.getDetailedFeedback(
-                assignmentId,
-                studentId
-              );
+              // Calculate the score by summing up individual question scores
+              const score = await fetchAndCalculateStudentScore(studentId);
 
-              if (feedbackResponse.data?.success) {
-                const score = feedbackResponse.data.data.totalScore;
+              toast({
+                title: "Grading Complete",
+                description: `${studentName}'s assignment has been graded${
+                  score !== null ? ` with score: ${score}` : ""
+                }`,
+              });
 
-                toast({
-                  title: "Grading Complete",
-                  description: `${studentName}'s assignment has been graded with score: ${score}`,
+              // Update the student status in the UI
+              if (assignment) {
+                const updatedStudents = assignment.students.map((s) => {
+                  if (s.studentId === studentId) {
+                    return {
+                      ...s,
+                      status: "graded" as const,
+                      score: score !== null ? score : undefined,
+                    };
+                  }
+                  return s;
                 });
 
-                // Update the student status in the UI
-                if (assignment) {
-                  const updatedStudents = assignment.students.map((s) => {
-                    if (s.studentId === studentId) {
-                      return {
-                        ...s,
-                        status: "graded" as const,
-                        score,
-                      };
-                    }
-                    return s;
-                  });
-
-                  setAssignment({ ...assignment, students: updatedStudents });
-                }
+                setAssignment({ ...assignment, students: updatedStudents });
               }
             } else if (status === "failed") {
               clearInterval(statusCheckInterval);
@@ -505,6 +500,72 @@ const AssignmentDetailPage = () => {
       console.error("Error setting up status checking:", err);
     }
   };
+
+  // Add a function to fetch and calculate the total score for a student
+  const fetchAndCalculateStudentScore = async (studentId: string) => {
+    if (!assignmentId) return null;
+
+    try {
+      // Get detailed feedback for this student's assignment
+      const feedbackResponse = await aiGradingApi.getDetailedFeedback(
+        assignmentId,
+        studentId
+      );
+
+      if (feedbackResponse.data?.success) {
+        const feedbackData = feedbackResponse.data.data;
+
+        // If there's a direct totalScore property, use that
+        if (typeof feedbackData.totalScore === "number") {
+          return feedbackData.totalScore;
+        }
+
+        // Otherwise sum up scores from individual questions
+        if (Array.isArray(feedbackData.questionFeedback)) {
+          const totalScore = feedbackData.questionFeedback.reduce(
+            (sum: number, question: any) => sum + (question.score || 0),
+            0
+          );
+          return totalScore;
+        }
+      }
+
+      return null;
+    } catch (err) {
+      console.error(`Error calculating score for student ${studentId}:`, err);
+      return null;
+    }
+  };
+
+  // Update the student score in the assignment state
+  const updateStudentScore = async (studentId: string) => {
+    if (!assignment) return;
+
+    const score = await fetchAndCalculateStudentScore(studentId);
+
+    if (score !== null) {
+      setAssignment({
+        ...assignment,
+        students: assignment.students.map((s) =>
+          s.studentId === studentId ? { ...s, score } : s
+        ),
+      });
+    }
+  };
+
+  // Fetch scores for all graded students when tab changes to results
+  useEffect(() => {
+    if (activeTab === "results" && assignment) {
+      // Only fetch scores for students with graded status who don't have a score yet
+      const studentsNeedingScores = assignment.students.filter(
+        (s) => s.status === "graded" && s.score === undefined
+      );
+
+      studentsNeedingScores.forEach((student) => {
+        updateStudentScore(student.studentId);
+      });
+    }
+  }, [activeTab, assignment]);
 
   // Modify handleAssignStudent to include assignment details with grading
   const handleAssignStudent = async (
@@ -1180,9 +1241,23 @@ const AssignmentDetailPage = () => {
                                 )}
                               </TableCell>
                               <TableCell>
-                                {student.score !== undefined
-                                  ? `${student.score}/${assignment.maxMarks}`
-                                  : "-"}
+                                {student.status === "graded" ? (
+                                  student.score !== undefined ? (
+                                    `${student.score}/${assignment.maxMarks}`
+                                  ) : (
+                                    <div className="flex items-center">
+                                      <Loader2
+                                        size={14}
+                                        className="animate-spin mr-1"
+                                      />
+                                      <span className="text-xs">
+                                        Calculating...
+                                      </span>
+                                    </div>
+                                  )
+                                ) : (
+                                  "-"
+                                )}
                               </TableCell>
                               <TableCell className="text-right">
                                 {(student.status === "graded" ||
