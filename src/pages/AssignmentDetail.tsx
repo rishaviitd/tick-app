@@ -74,11 +74,6 @@ const AssignmentDetailPage = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [assigningStudent, setAssigningStudent] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-  const [studentToReset, setStudentToReset] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [assigningStudentId, setAssigningStudentId] = useState<string | null>(
     null
@@ -795,78 +790,6 @@ const AssignmentDetailPage = () => {
     }
   };
 
-  // Add a method to open the reset confirmation dialog
-  const openResetConfirmation = (studentId: string, studentName: string) => {
-    setStudentToReset({ id: studentId, name: studentName });
-    setResetConfirmOpen(true);
-  };
-
-  // Modify the handleResetGrading function to be called from the dialog confirmation
-  const handleResetGrading = async (studentId: string, studentName: string) => {
-    if (!assignmentId) return;
-
-    try {
-      // Update student status to pending in the backend
-      const response = await assignmentApi.updateStudentAssignment(
-        assignmentId,
-        studentId,
-        { status: "pending" }
-      );
-
-      if (response.data.success) {
-        toast({
-          title: "Reset Grading",
-          description: `${studentName}'s status reset to pending.`,
-        });
-
-        // Update the student status in the UI
-        if (assignment) {
-          const updatedStudents = assignment.students.map((s) => {
-            if (s.studentId === studentId) {
-              return {
-                ...s,
-                status: "pending" as const,
-                score: undefined, // Remove score when resetting
-              };
-            }
-            return s;
-          });
-
-          setAssignment({ ...assignment, students: updatedStudents });
-
-          // Add the student to the available students list
-          const studentExists = availableStudents.some(
-            (s) => s.id === studentId
-          );
-          if (!studentExists) {
-            setAvailableStudents((prev) => [
-              ...prev,
-              { id: studentId, name: studentName },
-            ]);
-          }
-        }
-      } else {
-        toast({
-          title: "Reset Failed",
-          description:
-            response.data.message || "Failed to reset grading status",
-          variant: "destructive",
-        });
-      }
-    } catch (err) {
-      console.error("Error resetting grading status:", err);
-      toast({
-        title: "Reset Failed",
-        description: "There was a problem resetting the grading status",
-        variant: "destructive",
-      });
-    } finally {
-      // Close the dialog
-      setResetConfirmOpen(false);
-      setStudentToReset(null);
-    }
-  };
-
   // Loading state
   if (loading) {
     return (
@@ -968,16 +891,6 @@ const AssignmentDetailPage = () => {
           >
             <Share2 className="mr-2 h-4 w-4" />
             Share Results
-          </Button>
-          <Button
-            variant="outline"
-            asChild
-            className="hover:bg-gray-50 transition-colors"
-          >
-            <Link to={`/assignment/${assignmentId}/analytics`}>
-              <BarChart className="mr-2 h-4 w-4" />
-              Analytics
-            </Link>
           </Button>
         </div>
       </div>
@@ -1221,28 +1134,12 @@ const AssignmentDetailPage = () => {
                               </TableCell>
                               <TableCell>
                                 {student.status === "graded" && (
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center">
-                                      <CheckCircle
-                                        size={16}
-                                        className="text-green-500 mr-1"
-                                      />
-                                      <span className="text-xs">Graded</span>
-                                    </div>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() =>
-                                        openResetConfirmation(
-                                          student.studentId,
-                                          student.studentName
-                                        )
-                                      }
-                                      className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 px-2 h-7"
-                                    >
-                                      <RotateCcw size={12} className="mr-1" />
-                                      <span className="text-xs">Reset</span>
-                                    </Button>
+                                  <div className="flex items-center">
+                                    <CheckCircle
+                                      size={16}
+                                      className="text-green-500 mr-1"
+                                    />
+                                    <span className="text-xs">Graded</span>
                                   </div>
                                 )}
                                 {student.status === "processing" && (
@@ -1274,20 +1171,6 @@ const AssignmentDetailPage = () => {
                                       >
                                         <RotateCcw size={12} className="mr-1" />
                                         <span className="text-xs">Retry</span>
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                          openResetConfirmation(
-                                            student.studentId,
-                                            student.studentName
-                                          )
-                                        }
-                                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 px-2 h-7"
-                                      >
-                                        <RotateCcw size={12} className="mr-1" />
-                                        <span className="text-xs">Reset</span>
                                       </Button>
                                     </div>
                                   </div>
@@ -1332,40 +1215,6 @@ const AssignmentDetailPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
-
-      <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
-        <DialogContent className="sm:max-w-[500px] p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl">Confirm Reset</DialogTitle>
-            <DialogDescription className="py-2 text-base">
-              Are you sure you want to reset grading for {studentToReset?.name}?
-              <br />
-              <span className="block mt-2">
-                This will move them back to pending status and allow
-                reassignment.
-              </span>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button
-              variant="outline"
-              onClick={() => setResetConfirmOpen(false)}
-              className="hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </Button>
-            <Button
-              className="bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-xl transition-all duration-200"
-              onClick={() =>
-                studentToReset &&
-                handleResetGrading(studentToReset.id, studentToReset.name)
-              }
-            >
-              Yes, Reset
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

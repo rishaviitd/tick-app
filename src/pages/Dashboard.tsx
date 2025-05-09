@@ -53,14 +53,27 @@ const Dashboard = () => {
         console.warn("Dashboard: Unexpected data format:", data);
         setClasses([]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching classes:", err);
-      toast({
-        title: "Error loading classes",
-        description: "Please try again later",
-        variant: "destructive",
-      });
-      setError("Failed to load classes");
+
+      // Check if this is the "No classes found" 404 error
+      if (
+        err.response &&
+        err.response.status === 404 &&
+        err.response.data &&
+        err.response.data.message === "No classes found for this teacher"
+      ) {
+        // This is not an error, just an empty state
+        setClasses([]);
+      } else {
+        // This is a real error
+        toast({
+          title: "Error loading classes",
+          description: "Please try again later",
+          variant: "destructive",
+        });
+        setError("Failed to load classes");
+      }
     } finally {
       setIsLoading(false);
       setHasInitiallyFetched(true);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Card,
@@ -8,13 +8,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  ArrowLeft,
-  Loader2,
-  AlertCircle,
-  FileText,
-  ImageIcon,
-} from "lucide-react";
+import { Loader2, AlertCircle, FileText, ImageIcon } from "lucide-react";
 import { aiGradingApi, assignmentApi } from "@/lib/api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -54,6 +48,7 @@ function FeedbackPage() {
     questions: { questionText?: string; text?: string }[];
   } | null>(null);
   const [activeTab, setActiveTab] = useState("solutions");
+  const [activeQuestionTab, setActiveQuestionTab] = useState<string>("0");
   const [breakdowns, setBreakdowns] = useState<Record<string, any>>({});
   const [breakdownsLoading, setBreakdownsLoading] = useState(false);
   const [breakdownsError, setBreakdownsError] = useState<string | null>(null);
@@ -61,6 +56,14 @@ function FeedbackPage() {
   // Helper to replace literal \n with actual newlines for Markdown rendering
   const unescapeNewlines = (str: string) => str.replace(/\\n/g, "\n");
 
+  // Set first question as active by default when solutions load
+  useEffect(() => {
+    if (solutions && solutions.questionResponses.length > 0) {
+      setActiveQuestionTab("0");
+    }
+  }, [solutions]);
+
+  // Load data effect
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -146,10 +149,6 @@ function FeedbackPage() {
     fetchBreakdowns();
   }, [solutions, assignmentId, studentId]);
 
-  const handleBackClick = () => {
-    navigate(`/assignment/${assignmentId}`);
-  };
-
   // Loading state
   if (loading || !assignmentMeta) {
     return (
@@ -172,12 +171,6 @@ function FeedbackPage() {
           <p className="text-muted-foreground">
             {error || "Failed to load solutions"}
           </p>
-          <Button
-            onClick={handleBackClick}
-            className="bg-[#58CC02]/90 hover:bg-[#58CC02] text-white shadow-sm rounded-lg transition-all duration-200"
-          >
-            Return to Assignment
-          </Button>
         </div>
       </div>
     );
@@ -203,145 +196,191 @@ function FeedbackPage() {
     );
   };
 
+  // Get active question based on the active tab index
+  const activeQuestion =
+    solutions?.questionResponses[parseInt(activeQuestionTab)] || null;
+
   return (
-    <div className="container mx-auto px-4 space-y-6 py-8 max-w-5xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mb-2 flex items-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            onClick={handleBackClick}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Assignment
-          </Button>
-          <h1 className="text-2xl font-bold">{solutions.assignmentTitle}</h1>
-          <p className="text-muted-foreground">{solutions.studentName}</p>
-        </div>
+    <div className="container mx-auto px-2 space-y-3 pt-1 pb-4 max-w-full">
+      <div>
+        <h1 className="text-xl font-bold">{solutions.assignmentTitle}</h1>
+        <p className="text-muted-foreground text-sm">{solutions.studentName}</p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-1">
+        <TabsList className="mb-1">
           <TabsTrigger value="solutions">Extracted Solutions</TabsTrigger>
           <TabsTrigger value="submissions">Original Submissions</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="solutions">
-          <Card>
-            <CardHeader>
-              <CardTitle>Student Solutions</CardTitle>
-              <CardDescription>
-                Extracted solutions from the student's submission
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[600px] pr-4">
-                <div className="space-y-6">
-                  {solutions.questionResponses.map((question, index) => {
-                    const hasSolution = !isMissingSolution(question.solution);
+        <TabsContent value="solutions" className="mt-1">
+          <Card className="shadow-sm">
+            <CardHeader className="py-2 px-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-base">Student Solutions</CardTitle>
+                  <CardDescription className="text-xs">
+                    Extracted solutions from the student's submission
+                  </CardDescription>
+                </div>
 
-                    return (
-                      <div
-                        key={question.questionId}
-                        className="border rounded-lg p-4"
+                {/* Question tabs */}
+                <Tabs
+                  value={activeQuestionTab}
+                  onValueChange={setActiveQuestionTab}
+                >
+                  <TabsList className="h-8">
+                    {solutions.questionResponses.map((_, index) => (
+                      <TabsTrigger
+                        key={index}
+                        value={index.toString()}
+                        className="px-3 py-1 text-xs"
                       >
-                        <div className="mb-3">
-                          <h3 className="font-medium text-lg mb-2">
-                            Question {index + 1}
-                          </h3>
-                          <div className="text-sm bg-muted p-2 rounded-md">
+                        Q{index + 1}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              </div>
+            </CardHeader>
+
+            <CardContent className="px-3 py-2">
+              {activeQuestion && (
+                <div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Left column: Question and Solution */}
+                    <div className="bg-white rounded-md p-2 max-h-[calc(100vh-220px)] overflow-auto">
+                      <div className="mb-3">
+                        <div className="text-sm bg-muted p-2 rounded-md">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkMath]}
+                            rehypePlugins={[rehypeKatex]}
+                          >
+                            {activeQuestion.questionText}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-medium mb-1 flex items-center">
+                          <FileText className="h-4 w-4 mr-1" />
+                          Student's Solution
+                        </h4>
+                        {!isMissingSolution(activeQuestion.solution) ? (
+                          <div className="text-sm bg-slate-50 p-2 rounded-md whitespace-pre-wrap">
                             <ReactMarkdown
-                              remarkPlugins={[remarkMath]}
+                              remarkPlugins={[remarkMath, remarkBreaks]}
                               rehypePlugins={[rehypeKatex]}
                             >
-                              {question.questionText}
+                              {unescapeNewlines(activeQuestion.solution)}
                             </ReactMarkdown>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="text-sm bg-slate-50 p-3 rounded-md text-center text-muted-foreground">
+                            <p>No solution was extracted from the submission</p>
+                            <p className="text-xs mt-1">
+                              Try viewing the original submission images
+                            </p>
+                          </div>
+                        )}
+                      </div>
 
-                        <div>
-                          <h4 className="text-sm font-medium mb-1 flex items-center">
-                            <FileText className="h-4 w-4 mr-1" />
-                            Student's Solution
-                          </h4>
-                          {hasSolution ? (
-                            <div className="text-sm bg-slate-50 p-2 rounded-md whitespace-pre-wrap">
-                              <ReactMarkdown
-                                remarkPlugins={[remarkMath, remarkBreaks]}
-                                rehypePlugins={[rehypeKatex]}
-                              >
-                                {unescapeNewlines(question.solution)}
-                              </ReactMarkdown>
-                            </div>
-                          ) : (
-                            <div className="text-sm bg-slate-50 p-3 rounded-md text-center text-muted-foreground">
-                              <p>
-                                No solution was extracted from the submission
-                              </p>
-                              <p className="text-xs mt-1">
-                                Try viewing the original submission images
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        {hasSolution && (
-                          <div className="mt-4">
-                            <h4 className="text-sm font-medium mb-1">
-                              Steps Breakdown & Evaluation
+                      {/* Overall Assessment moved to left column */}
+                      {!isMissingSolution(activeQuestion.solution) &&
+                        breakdowns[activeQuestion.questionId] &&
+                        breakdowns[activeQuestion.questionId]
+                          .overallAssessment && (
+                          <div className="mt-3 bg-slate-50 p-2 rounded-md">
+                            <h4 className="font-medium text-sm">
+                              Overall Assessment
                             </h4>
-                            {breakdownsLoading ? (
-                              <div className="flex items-center text-sm text-muted-foreground">
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Loading steps...
-                              </div>
-                            ) : breakdowns[question.questionId] ? (
-                              <>
-                                <div className="text-xs italic mb-2 bg-slate-50 p-2 rounded-md whitespace-pre-wrap">
-                                  <ReactMarkdown
-                                    remarkPlugins={[remarkMath, remarkBreaks]}
-                                    rehypePlugins={[rehypeKatex]}
-                                  >
-                                    {unescapeNewlines(
-                                      breakdowns[question.questionId]
-                                        .studentThoughtProcess
-                                    )}
-                                  </ReactMarkdown>
-                                </div>
-                                <ul className="space-y-2">
-                                  {breakdowns[question.questionId].steps.map(
-                                    (step: any) => {
-                                      const status = step.status || "";
-                                      const justification =
-                                        step.justification || "";
-                                      let statusColor = "text-gray-700";
-                                      if (status.toLowerCase() === "correct")
-                                        statusColor = "text-green-600";
-                                      if (status.toLowerCase() === "incorrect")
-                                        statusColor = "text-red-600";
-                                      if (
-                                        status
-                                          .toLowerCase()
-                                          .includes("partially")
-                                      )
-                                        statusColor = "text-yellow-600";
-                                      return (
-                                        <li
-                                          key={step.stepNumber}
-                                          className="border p-2 rounded-md"
+                            <p className="text-sm">
+                              {
+                                breakdowns[activeQuestion.questionId]
+                                  .overallAssessment
+                              }
+                            </p>
+                          </div>
+                        )}
+                    </div>
+
+                    {/* Right column: Steps Breakdown */}
+                    {!isMissingSolution(activeQuestion.solution) && (
+                      <div className="bg-white rounded-md p-2 max-h-[calc(100vh-220px)] overflow-auto">
+                        <h4 className="text-sm font-medium mb-1">
+                          Steps Breakdown & Evaluation
+                        </h4>
+                        {breakdownsLoading ? (
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Loading steps...
+                          </div>
+                        ) : breakdowns[activeQuestion.questionId] ? (
+                          <div className="space-y-2">
+                            {/* Steps list */}
+                            <ul className="space-y-2">
+                              {breakdowns[activeQuestion.questionId].steps.map(
+                                (step: any) => {
+                                  const status = step.status || "";
+                                  const justification =
+                                    step.justification || "";
+                                  let statusColor = "text-gray-700";
+                                  if (status.toLowerCase() === "correct")
+                                    statusColor = "text-green-600";
+                                  if (status.toLowerCase() === "incorrect")
+                                    statusColor = "text-red-600";
+                                  if (
+                                    status.toLowerCase().includes("partially")
+                                  )
+                                    statusColor = "text-yellow-600";
+                                  return (
+                                    <li
+                                      key={step.stepNumber}
+                                      className="border p-2 rounded-md relative"
+                                    >
+                                      <div className="flex justify-between items-center mb-1">
+                                        <strong className="text-sm">
+                                          Work:
+                                        </strong>
+                                        <span
+                                          className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                                            status.toLowerCase() === "correct"
+                                              ? "bg-green-100 text-green-800"
+                                              : status.toLowerCase() ===
+                                                "incorrect"
+                                              ? "bg-red-100 text-red-800"
+                                              : status
+                                                  .toLowerCase()
+                                                  .includes("partially")
+                                              ? "bg-yellow-100 text-yellow-800"
+                                              : "bg-gray-100 text-gray-800"
+                                          }`}
                                         >
-                                          <div className="flex justify-between items-center">
-                                            <span
-                                              className={`font-semibold ${statusColor}`}
-                                            >
-                                              {status
-                                                ? status.toUpperCase()
-                                                : "STEP"}
-                                            </span>
+                                          {status
+                                            ? status.toUpperCase()
+                                            : "STEP"}
+                                        </span>
+                                      </div>
+                                      <div className="text-sm whitespace-pre-wrap">
+                                        <ReactMarkdown
+                                          remarkPlugins={[
+                                            remarkMath,
+                                            remarkBreaks,
+                                          ]}
+                                          rehypePlugins={[rehypeKatex]}
+                                        >
+                                          {unescapeNewlines(step.studentWork)}
+                                        </ReactMarkdown>
+                                      </div>
+
+                                      {justification && (
+                                        <div className="mt-1 border-t pt-1">
+                                          <div className="flex items-center">
+                                            <strong className="text-sm">
+                                              Justification:
+                                            </strong>
                                           </div>
-                                          <div className="text-sm whitespace-pre-wrap">
-                                            <strong>Work:</strong>{" "}
+                                          <div className="text-sm italic whitespace-pre-wrap">
                                             <ReactMarkdown
                                               remarkPlugins={[
                                                 remarkMath,
@@ -349,73 +388,40 @@ function FeedbackPage() {
                                               ]}
                                               rehypePlugins={[rehypeKatex]}
                                             >
-                                              {unescapeNewlines(
-                                                step.studentWork
-                                              )}
+                                              {unescapeNewlines(justification)}
                                             </ReactMarkdown>
                                           </div>
-
-                                          {justification && (
-                                            <div className="text-sm italic whitespace-pre-wrap">
-                                              <strong>Justification:</strong>{" "}
-                                              <ReactMarkdown
-                                                remarkPlugins={[
-                                                  remarkMath,
-                                                  remarkBreaks,
-                                                ]}
-                                                rehypePlugins={[rehypeKatex]}
-                                              >
-                                                {unescapeNewlines(
-                                                  justification
-                                                )}
-                                              </ReactMarkdown>
-                                            </div>
-                                          )}
-                                        </li>
-                                      );
-                                    }
-                                  )}
-                                </ul>
-                                {breakdowns[question.questionId]
-                                  .overallAssessment && (
-                                  <div className="mt-3 bg-slate-50 p-3 rounded-md">
-                                    <h4 className="font-medium text-sm">
-                                      Overall Assessment
-                                    </h4>
-                                    <p className="text-sm">
-                                      {
-                                        breakdowns[question.questionId]
-                                          .overallAssessment
-                                      }
-                                    </p>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-sm text-muted-foreground">
-                                No breakdown available.
-                              </p>
-                            )}
+                                        </div>
+                                      )}
+                                    </li>
+                                  );
+                                }
+                              )}
+                            </ul>
                           </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            No breakdown available.
+                          </p>
                         )}
                       </div>
-                    );
-                  })}
+                    )}
+                  </div>
                 </div>
-              </ScrollArea>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="submissions">
-          <Card>
-            <CardHeader>
-              <CardTitle>Original Submission</CardTitle>
-              <CardDescription>
+          <Card className="shadow-sm">
+            <CardHeader className="py-2 px-4">
+              <CardTitle className="text-base">Original Submission</CardTitle>
+              <CardDescription className="text-xs">
                 View the student's submitted answer sheets
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 py-2">
               <div className="text-center p-8 border rounded-md bg-slate-50">
                 <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
                 <p className="text-muted-foreground">
@@ -431,16 +437,16 @@ function FeedbackPage() {
         </TabsContent>
       </Tabs>
 
-      <div className="mt-4">
-        <Separator className="my-4" />
+      <div>
+        <Separator className="my-2" />
         <div className="flex justify-between items-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Submission date:{" "}
             {solutions.submissionDate
               ? new Date(solutions.submissionDate).toLocaleString()
               : "Not available"}
           </p>
-          <p className="text-sm">
+          <p className="text-xs">
             Status:{" "}
             <span className="text-blue-600 font-medium">
               {solutions.status}
