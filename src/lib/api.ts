@@ -65,6 +65,12 @@ export const assignmentApi = {
   getAvailableStudents: (assignmentId: string) =>
     apiClient.get(`/assignments/${assignmentId}/availableStudents`),
 
+  // Get student responses for an assignment
+  getStudentResponses: (assignmentId: string, studentId: string) =>
+    apiClient.get(
+      `/assignments/${assignmentId}/students/${studentId}/responses`
+    ),
+
   // Get rubric for a specific question in an assignment
   getQuestionRubric: (assignmentId: string, questionId: string) =>
     apiClient.get(
@@ -167,6 +173,12 @@ export const aiGradingApi = {
   // Get detailed feedback for a student's assignment
   getDetailedFeedback: (assignmentId: string, studentId: string) =>
     apiClient.get(`/ai-grading/${assignmentId}/students/${studentId}/feedback`),
+
+  // Get student responses with scores (needs backend implementation)
+  getStudentResponses: (assignmentId: string, studentId: string) =>
+    apiClient.get(
+      `/ai-grading/${assignmentId}/students/${studentId}/responses`
+    ),
 
   // Get saved steps breakdown for a student's question response
   getQuestionStepsBreakdown: (

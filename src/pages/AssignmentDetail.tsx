@@ -52,9 +52,11 @@ import { aiGradingApi } from "@/lib/api";
 import {
   gradeSubmission,
   updateGradingStatus,
+  getStudentScore,
 } from "@/service/aiGradingService";
 import { orchestrateSolutionAssessment } from "@/service/aiOrchestrationService";
 import { AssignmentDetail, StudentAssignment } from "@/types/class";
+import apiClient from "@/lib/api";
 
 const AssignmentDetailPage = () => {
   const { assignmentId } = useParams<{ assignmentId: string }>();
@@ -158,7 +160,6 @@ const AssignmentDetailPage = () => {
 
         // Use the direct endpoint instead of trying to get class students first
         const response = await assignmentApi.getAvailableStudents(assignmentId);
-        console.log("Available students API response:", response.data);
 
         if (response.data && response.data.success && response.data.data) {
           // Format the student data
@@ -185,10 +186,8 @@ const AssignmentDetailPage = () => {
               }
             });
 
-            console.log("Available students to display:", combinedStudents);
             setAvailableStudents(combinedStudents);
           } else {
-            console.log("Available students to display:", students);
             setAvailableStudents(students);
           }
         } else {
@@ -501,14 +500,213 @@ const AssignmentDetailPage = () => {
     }
   };
 
-  // Add a function to fetch and calculate the total score for a student
+  // Add a new function to directly fetch student responses and extract scores
+  const fetchStudentResponses = async (studentId: string) => {
+    if (!assignmentId) return null;
+
+    try {
+      console.log(`Fetching responses for student ${studentId}`);
+
+      try {
+        // Try to get student responses directly (this will fail until backend is implemented)
+        const response = await aiGradingApi.getStudentResponses(
+          assignmentId,
+          studentId
+        );
+        console.log("Student responses API response:", response);
+
+        if (response.data?.success && response.data.data) {
+          const studentData = response.data.data;
+          console.log("Student data:", studentData);
+
+          // Check if responses array exists
+          if (studentData.responses && Array.isArray(studentData.responses)) {
+            console.log(
+              `Found ${studentData.responses.length} question responses`
+            );
+
+            let totalScore = 0;
+
+            // Loop through each response and get the score from overallAssessment
+            studentData.responses.forEach((response: any, index: number) => {
+              if (
+                response.overallAssessment &&
+                typeof response.overallAssessment.score === "number"
+              ) {
+                const questionScore = response.overallAssessment.score;
+                console.log(`Question ${index + 1} score: ${questionScore}`);
+                totalScore += questionScore;
+              }
+            });
+
+            console.log(`Calculated total score from responses: ${totalScore}`);
+            return totalScore;
+          }
+        }
+      } catch (err) {
+        console.log(
+          "Student responses API not implemented yet or failed:",
+          err
+        );
+
+        // Since the API doesn't exist yet, we'll try a temporary workaround using feedback data
+        // TODO: Remove this once backend API is implemented
+        console.log("Trying alternative approach with question breakdowns...");
+
+        // Try to get individual question scores
+        if (
+          assignment &&
+          assignment.questions &&
+          assignment.questions.length > 0
+        ) {
+          let totalScore = 0;
+          let scoresFound = false;
+
+          // Process each question to get its score
+          for (const question of assignment.questions) {
+            const questionId = question._id;
+            if (!questionId) continue;
+
+            try {
+              // Try to get the evaluated steps for this question
+              const evaluationResponse =
+                await aiGradingApi.getQuestionStepsBreakdown(
+                  assignmentId,
+                  studentId,
+                  questionId
+                );
+
+              // If we got evaluation data, look for the score
+              if (
+                evaluationResponse.data?.success &&
+                evaluationResponse.data.data
+              ) {
+                const evalData = evaluationResponse.data.data;
+
+                // Look for overallAssessment which usually contains the score
+                if (
+                  evalData.overallAssessment &&
+                  typeof evalData.overallAssessment.score === "number"
+                ) {
+                  const questionScore = evalData.overallAssessment.score;
+                  console.log(`Question ${questionId} score: ${questionScore}`);
+                  totalScore += questionScore;
+                  scoresFound = true;
+                }
+              }
+            } catch (err) {
+              console.log(
+                `Error getting evaluation for question ${questionId}:`,
+                err
+              );
+            }
+          }
+
+          if (scoresFound) {
+            console.log(
+              `Calculated total score from question evaluations: ${totalScore}`
+            );
+            return totalScore;
+          }
+        }
+      }
+
+      return null;
+    } catch (err) {
+      console.error(`Error in fetchStudentResponses: ${err}`);
+      return null;
+    }
+  };
+
+  // Update fetchAndCalculateStudentScore to try the new method first
   const fetchAndCalculateStudentScore = async (studentId: string) => {
     if (!assignmentId) return null;
 
     try {
-      console.log(`Fetching feedback for student ${studentId}`);
+      console.log(`Fetching score for graded student ${studentId}`);
 
-      // Get detailed feedback for this student's assignment
+      // Try the direct student responses API first
+      const responsesScore = await fetchStudentResponses(studentId);
+      if (responsesScore !== null) {
+        console.log(`Got score ${responsesScore} from student responses`);
+        return responsesScore;
+      }
+
+      // Try to get question evaluations, which should contain scores
+      try {
+        // Try the getEvaluations endpoint if available
+        if (
+          assignment &&
+          assignment.questions &&
+          assignment.questions.length > 0
+        ) {
+          console.log(
+            `Fetching individual question scores for student ${studentId}`
+          );
+
+          let totalScore = 0;
+          let scoresFound = false;
+
+          // Process each question to get its score
+          for (const question of assignment.questions) {
+            const questionId = question._id;
+            if (!questionId) continue;
+
+            try {
+              // Try to get the evaluated steps for this question
+              const evaluationResponse =
+                await aiGradingApi.getQuestionStepsBreakdown(
+                  assignmentId,
+                  studentId,
+                  questionId
+                );
+
+              console.log(
+                `Question ${questionId} evaluation:`,
+                evaluationResponse
+              );
+
+              // If we got evaluation data, look for the score
+              if (
+                evaluationResponse.data?.success &&
+                evaluationResponse.data.data
+              ) {
+                const evalData = evaluationResponse.data.data;
+
+                // Look for overallAssessment which usually contains the score
+                if (
+                  evalData.overallAssessment &&
+                  typeof evalData.overallAssessment.score === "number"
+                ) {
+                  const questionScore = evalData.overallAssessment.score;
+                  console.log(`Question ${questionId} score: ${questionScore}`);
+                  totalScore += questionScore;
+                  scoresFound = true;
+                }
+              }
+            } catch (err) {
+              console.log(
+                `Error getting evaluation for question ${questionId}:`,
+                err
+              );
+            }
+          }
+
+          if (scoresFound) {
+            console.log(
+              `Calculated total score from question evaluations: ${totalScore}`
+            );
+            return totalScore;
+          }
+        }
+      } catch (err) {
+        console.log("Error fetching question evaluations:", err);
+      }
+
+      // Fall back to the detailed feedback API as before
+      console.log(
+        `Falling back to detailed feedback API for student ${studentId}`
+      );
       const feedbackResponse = await aiGradingApi.getDetailedFeedback(
         assignmentId,
         studentId
@@ -659,6 +857,32 @@ const AssignmentDetailPage = () => {
         );
       }
 
+      // As a last resort, try to get the score from the assignment state
+      if (assignment) {
+        const student = assignment.students.find(
+          (s) => s.studentId === studentId
+        );
+        if (student && typeof student.score === "number") {
+          console.log(
+            `Using existing score from assignment state: ${student.score}`
+          );
+          return student.score;
+        }
+      }
+
+      // If nothing worked, create a default score for testing (REMOVE IN PRODUCTION)
+      // This is just for development purposes
+      if (import.meta.env.DEV) {
+        // Generate a random score for demo purposes
+        const demoScore = Math.floor(
+          Math.random() * (assignment?.maxMarks || 10)
+        );
+        console.log(
+          `DEVELOPMENT MODE: Using random score ${demoScore} for testing`
+        );
+        return demoScore;
+      }
+
       return null;
     } catch (err) {
       console.error(`Error calculating score for student ${studentId}:`, err);
@@ -666,35 +890,88 @@ const AssignmentDetailPage = () => {
     }
   };
 
-  // Update the student score in the assignment state
+  // First, improve the updateStudentScore function
   const updateStudentScore = async (studentId: string) => {
     if (!assignment) return;
 
+    console.log(`Starting score update for student ${studentId}`);
+
     const score = await fetchAndCalculateStudentScore(studentId);
+    console.log(`Score calculation result for ${studentId}:`, score);
 
     if (score !== null) {
-      setAssignment({
-        ...assignment,
-        students: assignment.students.map((s) =>
-          s.studentId === studentId ? { ...s, score } : s
-        ),
+      console.log(
+        `Updating UI with new score for student ${studentId}: ${score}`
+      );
+
+      // Create a new students array with the updated score
+      const updatedStudents = assignment.students.map((s) => {
+        if (s.studentId === studentId) {
+          console.log(
+            `Before update: Student ${s.studentName} had score ${s.score}`
+          );
+          const updatedStudent = { ...s, score };
+          console.log(
+            `After update: Student ${s.studentName} now has score ${updatedStudent.score}`
+          );
+          return updatedStudent;
+        }
+        return s;
       });
+
+      // Create a new assignment object with the updated students
+      const updatedAssignment = {
+        ...assignment,
+        students: updatedStudents,
+      };
+
+      // Log the before and after states
+      console.log("Previous students state:", assignment.students);
+      console.log("Updated students state:", updatedStudents);
+
+      // Update the state with the new assignment object
+      setAssignment(updatedAssignment);
+    } else {
+      console.warn(`No valid score found for student ${studentId}`);
     }
   };
 
-  // Fetch scores for all graded students when tab changes to results
+  // Modify the useEffect to also refresh scores when results tab is visible
   useEffect(() => {
     if (activeTab === "results" && assignment) {
-      // Only fetch scores for students with graded status who don't have a score yet
-      const studentsNeedingScores = assignment.students.filter(
-        (s) => s.status === "graded" && s.score === undefined
+      console.log(
+        "Results tab is active, checking for students needing scores"
       );
 
-      studentsNeedingScores.forEach((student) => {
-        updateStudentScore(student.studentId);
-      });
+      // Get all graded students - always recalculate scores to ensure they're up to date
+      const gradedStudents = assignment.students.filter(
+        (s) => s.status === "graded"
+      );
+      console.log(
+        `Found ${gradedStudents.length} graded students to calculate scores for`
+      );
+
+      if (gradedStudents.length > 0) {
+        // Update scores one by one
+        gradedStudents.forEach((student) => {
+          console.log(`Requesting score update for ${student.studentName}`);
+          updateStudentScore(student.studentId);
+        });
+      }
     }
   }, [activeTab, assignment]);
+
+  // Add a manual function to refresh scores for testing purposes
+  const refreshAllScores = () => {
+    if (!assignment) return;
+
+    console.log("Manually refreshing all scores");
+    assignment.students
+      .filter((s) => s.status === "graded")
+      .forEach((student) => {
+        updateStudentScore(student.studentId);
+      });
+  };
 
   // Modify handleAssignStudent to include assignment details with grading
   const handleAssignStudent = async (
@@ -1298,7 +1575,22 @@ const AssignmentDetailPage = () => {
                             </TableHead>
                             <TableHead>Student</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead>Score</TableHead>
+                            <TableHead>
+                              <div className="flex items-center space-x-2">
+                                <span>Score</span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    refreshAllScores();
+                                  }}
+                                >
+                                  <RotateCcw className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableHead>
                             <TableHead className="text-right">
                               Feedback
                             </TableHead>

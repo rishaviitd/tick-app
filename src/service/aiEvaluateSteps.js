@@ -79,7 +79,7 @@ Return **ONLY** a valid JSON object (markdown formatting for variables and equat
   const model1 = "gemini-2.5-pro-exp-03-25";
   const model2 = "gemini-2.0-flash";
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model2}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model1}:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
