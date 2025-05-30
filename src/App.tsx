@@ -14,7 +14,6 @@ import { AppLayout } from "./components/Layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import CreateAssignment from "./pages/CreateAssignment";
 import CreateClass from "./pages/CreateClass";
-import GradingPage from "./pages/GradingPage";
 import NotFound from "./pages/NotFound";
 import ClassDetail from "./pages/ClassDetail";
 import AssignmentDetail from "./pages/AssignmentDetail";
@@ -85,7 +84,6 @@ const App = () => {
                   element={<CreateAssignment />}
                 />
                 <Route path="/create-class" element={<CreateClass />} />
-                <Route path="/grading" element={<GradingPage />} />
               </Route>
 
               {/* Catch all */}
