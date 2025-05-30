@@ -75,7 +75,7 @@ const AssignmentDetailPage = () => {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [assigningStudent, setAssigningStudent] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showScanner, setShowScanner] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [assigningStudentId, setAssigningStudentId] = useState<string | null>(
     null
@@ -1249,10 +1249,9 @@ const AssignmentDetailPage = () => {
     }
   };
 
+  // Open the scanner micro-frontend in a modal
   const handleUploadClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+    setShowScanner(true);
   };
 
   // Loading state
@@ -1398,18 +1397,21 @@ const AssignmentDetailPage = () => {
                     <p className="text-sm text-center text-muted-foreground mb-6 max-w-md">
                       Upload student answer sheets to be automatically graded
                     </p>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      multiple
-                      accept="image/*,.pdf"
-                      onChange={handleFileChange}
-                    />
+                    {/* Launch scanner micro-frontend */}
                     <Button onClick={handleUploadClick}>
                       <FileText className="mr-2 h-4 w-4" />
                       Select Files
                     </Button>
+                    {/* Scanner modal with embedded iframe */}
+                    <Dialog open={showScanner} onOpenChange={setShowScanner}>
+                      <DialogContent className="fixed inset-0 left-0 top-0 translate-x-0 translate-y-0 w-full h-full max-w-none max-h-none p-0 m-0 border-none">
+                        <iframe
+                          src="/scanner/index.html"
+                          className="w-full h-full border-none"
+                          title="Document Scanner"
+                        />
+                      </DialogContent>
+                    </Dialog>
 
                     {uploadedFiles.length > 0 && (
                       <div className="w-full mt-6 border rounded-md">
