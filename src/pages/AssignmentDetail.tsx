@@ -13,6 +13,7 @@ import {
   RotateCcw,
   AlertCircle,
   Upload,
+  Download,
   ArrowLeft,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1504,7 +1505,18 @@ const AssignmentDetailPage = () => {
                                   </div>
                                 </summary>
                                 {file && (
-                                  <ScrollArea className="p-3 max-h-[80vh]">
+                                  <div
+                                    className="p-3 max-h-[80vh] overflow-auto"
+                                    style={{ WebkitOverflowScrolling: "touch" }}
+                                  >
+                                    <a
+                                      href={URL.createObjectURL(file)}
+                                      download={`${student.name}-submission.pdf`}
+                                      className="flex items-center mb-2 text-sm text-primary hover:underline"
+                                    >
+                                      <Download className="mr-1 h-4 w-4" />
+                                      Download PDF
+                                    </a>
                                     <iframe
                                       src={`${URL.createObjectURL(
                                         file
@@ -1512,7 +1524,7 @@ const AssignmentDetailPage = () => {
                                       className="w-full h-full min-h-[60vh]"
                                       title={`Preview ${student.name}`}
                                     />
-                                  </ScrollArea>
+                                  </div>
                                 )}
                               </details>
                             );
