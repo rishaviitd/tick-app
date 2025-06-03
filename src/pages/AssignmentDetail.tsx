@@ -83,6 +83,38 @@ const AssignmentDetailPage = () => {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+  // Track per-student scanned file for preview and assignment
+  const [studentUploads, setStudentUploads] = useState<Record<string, File>>(
+    {}
+  );
+  // Ref to store which student is uploading
+  const uploadContextRef = useRef<{
+    studentId: string;
+    studentName: string;
+  } | null>(null);
+
+  // Listen for scanned PDF from the embedded scanner iframe
+  useEffect(() => {
+    const handleScannedPDF = (e: MessageEvent) => {
+      if (
+        e.data?.type === "scannedPDF" &&
+        e.data.blob &&
+        uploadContextRef.current
+      ) {
+        const { studentId } = uploadContextRef.current;
+        const pdfBlob = e.data.blob as Blob;
+        const file = new File([pdfBlob], "scanned.pdf", {
+          type: "application/pdf",
+        });
+        // Store scanned file for this student
+        setStudentUploads((prev) => ({ ...prev, [studentId]: file }));
+        setShowScanner(false);
+        uploadContextRef.current = null;
+      }
+    };
+    window.addEventListener("message", handleScannedPDF);
+    return () => window.removeEventListener("message", handleScannedPDF);
+  }, []);
 
   // Helper to test Gemini API connection
 
@@ -233,15 +265,6 @@ const AssignmentDetailPage = () => {
 
   const handleShareResults = () => {
     if (!assignment || !assignmentId) return;
-
-    if (selectedStudents.length === 0) {
-      toast({
-        title: "No Students Selected",
-        description: "Please select students to share results with",
-        variant: "destructive",
-      });
-      return;
-    }
 
     // Show the share dialog instead of immediately sharing
     setShowShareDialog(true);
@@ -1017,7 +1040,6 @@ const AssignmentDetailPage = () => {
     // show processing toast for this student
     toast({
       title: "Processing Submission",
-      description: `Assigning ${studentName} and starting solution extraction...`,
     });
 
     try {
@@ -1250,8 +1272,29 @@ const AssignmentDetailPage = () => {
   };
 
   // Open the scanner micro-frontend in a modal
-  const handleUploadClick = () => {
+  const handleUploadClick = (studentId: string, studentName: string) => {
+    uploadContextRef.current = { studentId, studentName };
     setShowScanner(true);
+  };
+
+  // Assign using an uploaded file
+  const assignStudentWithFile = (studentId: string, studentName: string) => {
+    const file = studentUploads[studentId];
+    if (file) {
+      handleAssignStudent(studentId, studentName, [file]);
+      // clear this student's upload
+      setStudentUploads((prev) => {
+        const newObj = { ...prev };
+        delete newObj[studentId];
+        return newObj;
+      });
+    } else {
+      toast({
+        title: "No File Selected",
+        description: "Please upload a file first",
+        variant: "destructive",
+      });
+    }
   };
 
   // Loading state
@@ -1316,6 +1359,16 @@ const AssignmentDetailPage = () => {
 
   return (
     <div className="container mx-auto px-4 space-y-6 pb-8 max-w-5xl">
+      {/* Scanner modal for scanning answer sheets */}
+      <Dialog open={showScanner} onOpenChange={setShowScanner}>
+        <DialogContent className="fixed inset-0 left-0 top-0 translate-x-0 translate-y-0 w-full h-full max-w-none max-h-none p-0 m-0 border-none z-50 bg-white">
+          <iframe
+            src="/scanner/index.html"
+            className="w-full h-full border-none"
+            title="Document Scanner"
+          />
+        </DialogContent>
+      </Dialog>
       {assignment && assignment.classId && (
         <Button
           variant="ghost"
@@ -1382,99 +1435,15 @@ const AssignmentDetailPage = () => {
         </TabsList>
 
         <TabsContent value="grade" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Upload Answer Sheets</CardTitle>
-                  <CardDescription>
-                    Upload student answer sheets or assign from class
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-col items-center justify-center p-6 border border-dashed rounded-lg">
-                    <FileUp size={40} className="text-muted-foreground mb-4" />
-                    <p className="text-sm text-center text-muted-foreground mb-6 max-w-md">
-                      Upload student answer sheets to be automatically graded
-                    </p>
-                    {/* Launch scanner micro-frontend */}
-                    <Button onClick={handleUploadClick}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Select Files
-                    </Button>
-                    {/* Scanner modal with embedded iframe */}
-                    <Dialog open={showScanner} onOpenChange={setShowScanner}>
-                      <DialogContent className="fixed inset-0 left-0 top-0 translate-x-0 translate-y-0 w-full h-full max-w-none max-h-none p-0 m-0 border-none">
-                        <iframe
-                          src="/scanner/index.html"
-                          className="w-full h-full border-none"
-                          title="Document Scanner"
-                        />
-                      </DialogContent>
-                    </Dialog>
-
-                    {uploadedFiles.length > 0 && (
-                      <div className="w-full mt-6 border rounded-md">
-                        <div className="p-4 flex justify-between items-center">
-                          <h4 className="text-sm font-medium">
-                            Selected Files
-                          </h4>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setUploadedFiles([])}
-                          >
-                            Clear
-                          </Button>
-                        </div>
-                        <div className="p-2 max-h-[200px] overflow-y-auto">
-                          {uploadedFiles.map((file, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center justify-between p-2 hover:bg-muted rounded-md"
-                            >
-                              <div className="flex items-center">
-                                <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
-                                <span className="text-sm">{file.name}</span>
-                              </div>
-                              <span className="text-xs text-muted-foreground">
-                                {(file.size / 1024).toFixed(1)} KB
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {uploadedFiles.length > 0 && (
-                      <div className="mt-4 p-4 bg-blue-50 text-blue-800 rounded-md text-sm">
-                        <p className="flex items-center font-medium">
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Files ready for assignment
-                        </p>
-                        <p className="mt-2 text-xs text-blue-600">
-                          Click "Assign" next to a student to assign these files
-                          and start grading
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
+          <div className="grid grid-cols-1 gap-4">
             <div className="w-full">
               <Card>
-                <CardHeader>
-                  <CardTitle>Assign Students</CardTitle>
-                  <CardDescription>Assign students from class</CardDescription>
-                </CardHeader>
                 <CardContent className="space-y-4">
                   <Input
                     placeholder="Search students..."
                     value={searchQuery}
                     onChange={handleSearchStudent}
-                    className="mb-4"
+                    className="mb-2 mt-4"
                   />
 
                   <div className="overflow-x-auto">
@@ -1488,44 +1457,66 @@ const AssignmentDetailPage = () => {
                             </p>
                           </div>
                         ) : filteredStudents.length > 0 ? (
-                          filteredStudents.map((student) => (
-                            <div
-                              key={student.id}
-                              className="flex items-center justify-between p-3 border rounded-md"
-                            >
-                              <div className="flex items-center space-x-2">
-                                <label
-                                  htmlFor={`student-${student.id}`}
-                                  className="font-medium cursor-pointer"
-                                >
-                                  {student.name}
-                                </label>
-                              </div>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    handleAssignStudent(
-                                      student.id,
-                                      student.name,
-                                      uploadedFiles
-                                    )
-                                  }
-                                  disabled={assigningStudentId === student.id}
-                                >
-                                  {assigningStudentId === student.id ? (
-                                    <>
-                                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                      Grading...
-                                    </>
-                                  ) : (
-                                    "Assign"
-                                  )}
-                                </Button>
-                              </div>
-                            </div>
-                          ))
+                          filteredStudents.map((student) => {
+                            const file = studentUploads[student.id];
+                            return (
+                              <details
+                                key={student.id}
+                                className="border rounded-md mb-4"
+                              >
+                                <summary className="flex items-center justify-between p-3 cursor-pointer">
+                                  <span className="font-medium">
+                                    {student.name}
+                                  </span>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        uploadContextRef.current = {
+                                          studentId: student.id,
+                                          studentName: student.name,
+                                        };
+                                        setShowScanner(true);
+                                      }}
+                                      disabled={
+                                        assigningStudentId === student.id
+                                      }
+                                    >
+                                      {file ? "Re-upload" : "Upload"}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      onClick={() =>
+                                        assignStudentWithFile(
+                                          student.id,
+                                          student.name
+                                        )
+                                      }
+                                      disabled={
+                                        !file ||
+                                        assigningStudentId === student.id
+                                      }
+                                    >
+                                      Grade
+                                    </Button>
+                                  </div>
+                                </summary>
+                                {file && (
+                                  <div className="p-3 h-[600px]">
+                                    <iframe
+                                      src={`${URL.createObjectURL(
+                                        file
+                                      )}#toolbar=0`}
+                                      className="w-full h-full"
+                                      title={`Preview ${student.name}`}
+                                    />
+                                  </div>
+                                )}
+                              </details>
+                            );
+                          })
                         ) : (
                           <div className="text-center py-8">
                             <p className="text-muted-foreground">
@@ -1744,91 +1735,10 @@ const AssignmentDetailPage = () => {
                   className={`absolute bg-white rounded-full ${
                     shareSuccess ? "animate-scale-up" : "opacity-0"
                   }`}
-                  style={{ height: "80px", width: "80px" }}
                 ></div>
-
-                {/* Checkmark SVG with animation */}
-                <svg
-                  className={`relative h-12 w-12 text-green-500 ${
-                    shareSuccess ? "animate-check-mark" : "opacity-0"
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={3}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
               </div>
-
-              {/* Results shared text */}
-              <h2
-                className={`text-white font-bold text-xl transition-opacity duration-500 ${
-                  shareSuccess ? "opacity-100" : "opacity-0"
-                }`}
-              >
-                Results Shared
-              </h2>
             </div>
           </div>
-
-          <DialogHeader>
-            <DialogTitle>Share Results</DialogTitle>
-            <DialogDescription>
-              Results will be shared with the following students:
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="mt-4 max-h-[200px] overflow-y-auto">
-            <div className="space-y-2">
-              {assignment &&
-                selectedStudents.map((studentId) => {
-                  const student = assignment.students.find(
-                    (s) => s.studentId === studentId
-                  );
-                  return (
-                    <div
-                      key={studentId}
-                      className="p-3 bg-muted rounded-md flex items-center space-x-2"
-                    >
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                      <span>{student?.studentName || studentId}</span>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-
-          <DialogFooter className="flex items-center justify-between sm:justify-between mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setShowShareDialog(false)}
-              disabled={isSharing}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmShareResults}
-              className="bg-primary hover:bg-primary/90"
-              disabled={isSharing}
-            >
-              {isSharing ? (
-                <div className="flex items-center">
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sharing...
-                </div>
-              ) : (
-                <>
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Share Results
-                </>
-              )}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

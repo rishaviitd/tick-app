@@ -1148,9 +1148,18 @@ const onLoad = async ()=>{
         if (pages.length) {
             doneWrapper.style.opacity = "0.5";
             while(pastWrapper.lastChild != past)pastWrapper.removeChild(pastWrapper.lastChild);
-            (0, _io.download)(new Blob([
-                await (0, _pdf.toPDF)(await Promise.all(pages.map(({ data, quad })=>(0, _process.extractDocument)(data, quad, 1224, true))))
-            ]), "out.pdf");
+            const pdfBuffer = await (0, _pdf.toPDF)(await Promise.all(pages.map(({ data, quad })=>(0, _process.extractDocument)(data, quad, 1224, true))));
+            const pdfBlob = new Blob([
+                pdfBuffer
+            ], {
+                type: "application/pdf"
+            });
+            window.parent.postMessage({
+                type: "pdfGenerated",
+                blob: pdfBlob,
+                fileName: "out.pdf"
+            }, "*");
+            window.parent.location.href = "/upload";
             pages.length = 0;
         }
     };
@@ -1176,7 +1185,7 @@ const onLoad = async ()=>{
 };
 onLoad();
 
-},{"./process":"6LcgS","./pdf":"8Mcz1","./io":"dIlHe","url:./flash.svg":"bghYI","url:./flash-off.svg":"f37Sj","url:./hd.svg":"eJqXd","url:./sd.svg":"bhbNc","image-capture":"4nidF","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"6LcgS":[function(require,module,exports) {
+},{"./process":"6LcgS","./io":"dIlHe","url:./flash.svg":"bghYI","url:./flash-off.svg":"f37Sj","url:./hd.svg":"eJqXd","url:./sd.svg":"bhbNc","image-capture":"4nidF","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./pdf":"8Mcz1"}],"6LcgS":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "findDocument", ()=>findDocument);
@@ -1329,230 +1338,7 @@ exports.export = function(dest, destName, get) {
     });
 };
 
-},{}],"8Mcz1":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "toPDF", ()=>toPDF);
-const readFile = Blob.prototype.arrayBuffer || function() {
-    return new Promise((resolve, reject)=>{
-        const fr = new FileReader();
-        fr.onload = ()=>{
-            resolve(fr.result);
-        };
-        fr.onerror = ()=>{
-            reject(fr.error);
-        };
-        fr.readAsArrayBuffer(this);
-    });
-};
-const toPDF = async (images)=>{
-    const pdfChunks = [];
-    let index = 0;
-    const offsets = [];
-    const write = (chunk)=>{
-        pdfChunks.push(chunk);
-        index += chunk.length;
-    };
-    const token = (chunk)=>{
-        write(" ");
-        write(chunk);
-    };
-    const concat = (chunks)=>{
-        let len = 0;
-        for (const chunk of chunks)len += chunk.length;
-        const buf = new Uint8Array(len);
-        len = 0;
-        for (const chunk of chunks){
-            if (typeof chunk == "string") for(let i = 0; i < chunk.length; ++i)buf[i + len] = chunk.charCodeAt(i);
-            else buf.set(chunk, len);
-            len += chunk.length;
-        }
-        return buf;
-    };
-    // Convenience functions
-    const comment = (content)=>{
-        write("%" + content + "\n");
-    };
-    const number = (value)=>{
-        // Note: this doesnt work for very small and very large numbers
-        token(value.toString());
-    };
-    const ascii = (value)=>{
-        token("(" + value.replace(/[\n\r\t\f\b\(\)\\]/g, (c)=>"\\00" + c.charCodeAt(0).toString(8)) + ")");
-    };
-    const bin = (value)=>{
-        let data = "<";
-        if (typeof value == "string") for(let i = 0; i < value.length; ++i)data += value.charCodeAt(i).toString(16);
-        else for(let i = 0; i < value.length; ++i)data += value[i].toString(16);
-        token(data + ">");
-    };
-    const name = (value)=>{
-        // Note: only supports ASCII names
-        token("/" + value);
-    };
-    const array = (fn)=>{
-        token("[");
-        fn();
-        token("]");
-    };
-    const dict = (values)=>{
-        token("<<");
-        for(const key in values){
-            name(key);
-            values[key]();
-        }
-        token(">>");
-    };
-    const stream = (desc, content)=>{
-        if (!desc["Length"]) throw new TypeError("need stream length");
-        dict(desc);
-        token("stream\n");
-        write(content);
-        write("endstream");
-    };
-    const object = (fn)=>{
-        write(" ");
-        write(offsets.push(index) + " 0 obj");
-        fn();
-        token("endobj");
-        return offsets.length;
-    };
-    const reference = (id)=>{
-        token(id + " 0 R");
-    };
-    const nullObject = ()=>{
-        token("null");
-    };
-    // v1.4 for compatibility
-    comment("PDF-1.4");
-    // 4 byte binary comment, as suggested by spec
-    comment("\x90\x85\xfa\xe3");
-    const pages = await Promise.all(images.map(async (img)=>{
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        canvas.getContext("2d").putImageData(img, 0, 0);
-        const jpeg = await new Promise((resolve)=>canvas.toBlob(resolve, "image/jpeg"));
-        const jpegData = new Uint8Array(await readFile.call(jpeg));
-        const image = object(()=>{
-            stream({
-                Type () {
-                    name("XObject");
-                },
-                Subtype () {
-                    name("Image");
-                },
-                Width () {
-                    number(img.width);
-                },
-                Height () {
-                    number(img.height);
-                },
-                ColorSpace () {
-                    name("DeviceRGB");
-                },
-                BitsPerComponent () {
-                    number(8);
-                },
-                Filter () {
-                    name("DCTDecode");
-                },
-                Length () {
-                    number(jpegData.length);
-                }
-            }, jpegData);
-        });
-        // US Letter width
-        const height = 792;
-        const width = height * img.width / img.height;
-        const contents = object(()=>{
-            const result = `${width} 0 0 ${height} 0 0 cm /I Do`;
-            stream({
-                Length () {
-                    number(result.length);
-                }
-            }, concat([
-                result
-            ]));
-        });
-        const page = object(()=>{
-            dict({
-                Type () {
-                    name("Page");
-                },
-                Parent () {
-                    reference(offsets.length + 1);
-                },
-                Resources () {
-                    dict({
-                        XObject () {
-                            dict({
-                                I () {
-                                    reference(image);
-                                }
-                            });
-                        }
-                    });
-                },
-                Contents () {
-                    reference(contents);
-                },
-                MediaBox () {
-                    array(()=>{
-                        number(0);
-                        number(0);
-                        number(width);
-                        number(height);
-                    });
-                }
-            });
-        });
-        return page;
-    }));
-    const pageRoot = object(()=>{
-        dict({
-            Type () {
-                name("Pages");
-            },
-            Kids () {
-                array(()=>{
-                    for (const page of pages)reference(page);
-                });
-            },
-            Count () {
-                number(pages.length);
-            }
-        });
-    });
-    const catalog = object(()=>{
-        dict({
-            Type () {
-                name("Catalog");
-            },
-            Pages () {
-                reference(pageRoot);
-            }
-        });
-    });
-    // XREF
-    write("\n");
-    const xrefOffset = index;
-    write("xref\n0 " + (offsets.length + 1) + "\n0000000000 65535 f \n");
-    for (const offset of offsets)write(offset.toString().padStart(10, "0") + " 00000 n \n");
-    write("trailer");
-    dict({
-        Size () {
-            number(offsets.length + 1);
-        },
-        Root () {
-            reference(catalog);
-        }
-    });
-    write("\nstartxref\n" + xrefOffset + "\n%%EOF");
-    return concat(pdfChunks);
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"dIlHe":[function(require,module,exports) {
+},{}],"dIlHe":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "toImage", ()=>toImage);
@@ -1744,6 +1530,230 @@ if (typeof ImageCapture === "undefined") ImageCapture = class {
     }
 };
 window.ImageCapture = ImageCapture;
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8Mcz1":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "toPDF", ()=>toPDF);
+const readFile = Blob.prototype.arrayBuffer || function() {
+    return new Promise((resolve, reject)=>{
+        const fr = new FileReader();
+        fr.onload = ()=>{
+            resolve(fr.result);
+        };
+        fr.onerror = ()=>{
+            reject(fr.error);
+        };
+        fr.readAsArrayBuffer(this);
+    });
+};
+const toPDF = async (images)=>{
+    const pdfChunks = [];
+    let index = 0;
+    const offsets = [];
+    const write = (chunk)=>{
+        pdfChunks.push(chunk);
+        index += chunk.length;
+    };
+    const token = (chunk)=>{
+        write(" ");
+        write(chunk);
+    };
+    const concat = (chunks)=>{
+        let len = 0;
+        for (const chunk of chunks)len += chunk.length;
+        const buf = new Uint8Array(len);
+        len = 0;
+        for (const chunk of chunks){
+            if (typeof chunk == "string") for(let i = 0; i < chunk.length; ++i)buf[i + len] = chunk.charCodeAt(i);
+            else buf.set(chunk, len);
+            len += chunk.length;
+        }
+        return buf;
+    };
+    // Convenience functions
+    const comment = (content)=>{
+        write("%" + content + "\n");
+    };
+    const number = (value)=>{
+        // Note: this doesnt work for very small and very large numbers
+        token(value.toString());
+    };
+    const ascii = (value)=>{
+        token("(" + value.replace(/[\n\r\t\f\b\(\)\\]/g, (c)=>"\\00" + c.charCodeAt(0).toString(8)) + ")");
+    };
+    const bin = (value)=>{
+        let data = "<";
+        if (typeof value == "string") for(let i = 0; i < value.length; ++i)data += value.charCodeAt(i).toString(16);
+        else for(let i = 0; i < value.length; ++i)data += value[i].toString(16);
+        token(data + ">");
+    };
+    const name = (value)=>{
+        // Note: only supports ASCII names
+        token("/" + value);
+    };
+    const array = (fn)=>{
+        token("[");
+        fn();
+        token("]");
+    };
+    const dict = (values)=>{
+        token("<<");
+        for(const key in values){
+            name(key);
+            values[key]();
+        }
+        token(">>");
+    };
+    const stream = (desc, content)=>{
+        if (!desc["Length"]) throw new TypeError("need stream length");
+        dict(desc);
+        token("stream\n");
+        write(content);
+        write("endstream");
+    };
+    const object = (fn)=>{
+        write(" ");
+        write(offsets.push(index) + " 0 obj");
+        fn();
+        token("endobj");
+        return offsets.length;
+    };
+    const reference = (id)=>{
+        token(id + " 0 R");
+    };
+    const nullObject = ()=>{
+        token("null");
+    };
+    // v1.4 for compatibility
+    comment("PDF-1.4");
+    // 4 byte binary comment, as suggested by spec
+    comment("\x90\x85\xfa\xe3");
+    const pagesRootId = images.length * 3 + 1;
+    const pages = await Promise.all(images.map(async (img)=>{
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        canvas.getContext("2d").putImageData(img, 0, 0);
+        const jpeg = await new Promise((resolve)=>canvas.toBlob(resolve, "image/jpeg"));
+        const jpegData = new Uint8Array(await readFile.call(jpeg));
+        const image = object(()=>{
+            stream({
+                Type () {
+                    name("XObject");
+                },
+                Subtype () {
+                    name("Image");
+                },
+                Width () {
+                    number(img.width);
+                },
+                Height () {
+                    number(img.height);
+                },
+                ColorSpace () {
+                    name("DeviceRGB");
+                },
+                BitsPerComponent () {
+                    number(8);
+                },
+                Filter () {
+                    name("DCTDecode");
+                },
+                Length () {
+                    number(jpegData.length);
+                }
+            }, jpegData);
+        });
+        // US Letter width
+        const height = 792;
+        const width = height * img.width / img.height;
+        const contents = object(()=>{
+            const result = `${width} 0 0 ${height} 0 0 cm /I Do`;
+            stream({
+                Length () {
+                    number(result.length);
+                }
+            }, concat([
+                result
+            ]));
+        });
+        const page = object(()=>{
+            dict({
+                Type () {
+                    name("Page");
+                },
+                Parent () {
+                    reference(pagesRootId);
+                },
+                Resources () {
+                    dict({
+                        XObject () {
+                            dict({
+                                I () {
+                                    reference(image);
+                                }
+                            });
+                        }
+                    });
+                },
+                Contents () {
+                    reference(contents);
+                },
+                MediaBox () {
+                    array(()=>{
+                        number(0);
+                        number(0);
+                        number(width);
+                        number(height);
+                    });
+                }
+            });
+        });
+        return page;
+    }));
+    const pageRoot = object(()=>{
+        dict({
+            Type () {
+                name("Pages");
+            },
+            Kids () {
+                array(()=>{
+                    for (const page of pages)reference(page);
+                });
+            },
+            Count () {
+                number(pages.length);
+            }
+        });
+    });
+    const catalog = object(()=>{
+        dict({
+            Type () {
+                name("Catalog");
+            },
+            Pages () {
+                reference(pageRoot);
+            }
+        });
+    });
+    // XREF
+    write("\n");
+    const xrefOffset = index;
+    write("xref\n0 " + (offsets.length + 1) + "\n0000000000 65535 f \n");
+    for (const offset of offsets)write(offset.toString().padStart(10, "0") + " 00000 n \n");
+    write("trailer");
+    dict({
+        Size () {
+            number(offsets.length + 1);
+        },
+        Root () {
+            reference(catalog);
+        }
+    });
+    write("\nstartxref\n" + xrefOffset + "\n%%EOF");
+    return concat(pdfChunks);
+};
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["2oZg2","h7u1C"], "h7u1C", "parcelRequireed96")
 
