@@ -1504,12 +1504,12 @@ const AssignmentDetailPage = () => {
                                   </div>
                                 </summary>
                                 {file && (
-                                  <div className="p-3 h-[600px]">
+                                  <div className="p-3 max-h-[80vh] overflow-auto">
                                     <iframe
                                       src={`${URL.createObjectURL(
                                         file
                                       )}#toolbar=0`}
-                                      className="w-full h-full"
+                                      className="w-full h-full min-h-[60vh]"
                                       title={`Preview ${student.name}`}
                                     />
                                   </div>
