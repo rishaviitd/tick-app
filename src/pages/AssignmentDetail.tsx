@@ -1474,8 +1474,8 @@ const AssignmentDetailPage = () => {
         </DialogContent>
       </Dialog>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-baseline space-x-2">
-          <h1 className="text-2xl font-bold tracking-tight">
+        <div className="flex items-center space-x-4">
+          <h1 className="text-xl font-semibold tracking-tight">
             {assignment.title}
           </h1>
           <span className="text-sm text-muted-foreground">
@@ -1502,25 +1502,11 @@ const AssignmentDetailPage = () => {
         </div>
       </div>
 
-      {assignment.status === "active" && (
-        <Card className="mb-2">
-          <CardContent className="p-3">
-            <div className="space-y-1">
-              <div className="flex justify-between items-center text-xs">
-                <span>
-                  {gradedCount} of {totalStudents} graded
-                </span>
-                <span className="font-medium">{completionPercentage}%</span>
-              </div>
-              <Progress value={completionPercentage} className="h-1" />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="grade">Grade</TabsTrigger>
+          <TabsTrigger value="grade">
+            Graded [{gradedCount} / {totalStudents}]
+          </TabsTrigger>
           <TabsTrigger value="results">Results</TabsTrigger>
         </TabsList>
 
