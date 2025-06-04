@@ -1505,10 +1505,7 @@ const AssignmentDetailPage = () => {
                                   </div>
                                 </summary>
                                 {file && (
-                                  <div
-                                    className="p-3 max-h-[80vh] overflow-auto"
-                                    style={{ WebkitOverflowScrolling: "touch" }}
-                                  >
+                                  <div className="p-3">
                                     <a
                                       href={URL.createObjectURL(file)}
                                       download={`${student.name}-submission.pdf`}
@@ -1517,12 +1514,11 @@ const AssignmentDetailPage = () => {
                                       <Download className="mr-1 h-4 w-4" />
                                       Download PDF
                                     </a>
-                                    <iframe
-                                      src={`${URL.createObjectURL(
-                                        file
-                                      )}#toolbar=0`}
-                                      className="w-full h-full min-h-[60vh]"
-                                      title={`Preview ${student.name}`}
+                                    <embed
+                                      src={URL.createObjectURL(file)}
+                                      type="application/pdf"
+                                      width="100%"
+                                      height="80vh"
                                     />
                                   </div>
                                 )}
