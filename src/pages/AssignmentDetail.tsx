@@ -58,6 +58,10 @@ import {
 import { orchestrateSolutionAssessment } from "@/service/aiOrchestrationService";
 import { AssignmentDetail, StudentAssignment } from "@/types/class";
 import apiClient from "@/lib/api";
+import { Document, Page, pdfjs } from "react-pdf";
+
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 const AssignmentDetailPage = () => {
   const { assignmentId } = useParams<{ assignmentId: string }>();
@@ -116,8 +120,6 @@ const AssignmentDetailPage = () => {
     window.addEventListener("message", handleScannedPDF);
     return () => window.removeEventListener("message", handleScannedPDF);
   }, []);
-
-  // Helper to test Gemini API connection
 
   // Helper to convert a File to base64 string
   const fileToBase64 = (file: File): Promise<string | null> =>
@@ -1298,6 +1300,42 @@ const AssignmentDetailPage = () => {
     }
   };
 
+  // PDF preview component for robust multi-page rendering
+  function MyPDFPreview({
+    file,
+    studentName,
+  }: {
+    file: File;
+    studentName: string;
+  }) {
+    const [numPages, setNumPages] = useState<number>(0);
+    const onDocumentLoadSuccess = ({
+      numPages: loaded,
+    }: {
+      numPages: number;
+    }) => setNumPages(loaded);
+    return (
+      <div className="p-3 max-h-[80vh] overflow-y-auto">
+        <a
+          href={URL.createObjectURL(file)}
+          download={`${studentName}-submission.pdf`}
+          className="flex items-center mb-2 text-sm text-primary hover:underline"
+        >
+          <Download className="mr-1 h-4 w-4" />
+          Download PDF
+        </a>
+        <Document
+          file={URL.createObjectURL(file)}
+          onLoadSuccess={onDocumentLoadSuccess}
+        >
+          {Array.from({ length: numPages }, (_, i) => (
+            <Page key={i} pageNumber={i + 1} width={window.innerWidth * 0.9} />
+          ))}
+        </Document>
+      </div>
+    );
+  }
+
   // Loading state
   if (loading) {
     return (
@@ -1505,22 +1543,10 @@ const AssignmentDetailPage = () => {
                                   </div>
                                 </summary>
                                 {file && (
-                                  <div className="p-3">
-                                    <a
-                                      href={URL.createObjectURL(file)}
-                                      download={`${student.name}-submission.pdf`}
-                                      className="flex items-center mb-2 text-sm text-primary hover:underline"
-                                    >
-                                      <Download className="mr-1 h-4 w-4" />
-                                      Download PDF
-                                    </a>
-                                    <embed
-                                      src={URL.createObjectURL(file)}
-                                      type="application/pdf"
-                                      width="100%"
-                                      height="80vh"
-                                    />
-                                  </div>
+                                  <MyPDFPreview
+                                    file={file}
+                                    studentName={student.name}
+                                  />
                                 )}
                               </details>
                             );
