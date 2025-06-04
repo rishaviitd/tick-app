@@ -1408,29 +1408,15 @@ const AssignmentDetailPage = () => {
           />
         </DialogContent>
       </Dialog>
-      {assignment && assignment.classId && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="flex items-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-          onClick={() => navigate(`/class/${assignment.classId}`)}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Class
-        </Button>
-      )}
-
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="flex items-baseline space-x-2">
           <h1 className="text-2xl font-bold tracking-tight">
             {assignment.title}
           </h1>
-
-          <p className="text-sm text-muted-foreground mt-1">
+          <span className="text-sm text-muted-foreground">
             {assignment.maxMarks} marks
-          </p>
+          </span>
         </div>
-
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
