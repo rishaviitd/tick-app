@@ -59,9 +59,13 @@ import { orchestrateSolutionAssessment } from "@/service/aiOrchestrationService"
 import { AssignmentDetail, StudentAssignment } from "@/types/class";
 import apiClient from "@/lib/api";
 import { Document, Page, pdfjs } from "react-pdf";
-
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+// Import required stylesheets for proper PDF rendering
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
+// We're using the legacy worker URL structure which should be compatible
+// AND we're using https:// to avoid mixed content warnings
+pdfjs.GlobalWorkerOptions.workerSrc =
+  "https://unpkg.com/pdfjs-dist@4.8.69/legacy/build/pdf.worker.min.mjs";
 
 const AssignmentDetailPage = () => {
   const { assignmentId } = useParams<{ assignmentId: string }>();
@@ -1309,11 +1313,25 @@ const AssignmentDetailPage = () => {
     studentName: string;
   }) {
     const [numPages, setNumPages] = useState<number>(0);
+    const [error, setError] = useState<Error | null>(null);
+    const [loading, setLoading] = useState<boolean>(true);
+
     const onDocumentLoadSuccess = ({
       numPages: loaded,
     }: {
       numPages: number;
-    }) => setNumPages(loaded);
+    }) => {
+      setNumPages(loaded);
+      setLoading(false);
+      console.log(`PDF loaded successfully with ${loaded} pages`);
+    };
+
+    const onDocumentLoadError = (err: Error) => {
+      console.error("Error loading PDF:", err);
+      setError(err);
+      setLoading(false);
+    };
+
     return (
       <div className="p-3 max-h-[80vh] overflow-y-auto">
         <a
@@ -1324,14 +1342,61 @@ const AssignmentDetailPage = () => {
           <Download className="mr-1 h-4 w-4" />
           Download PDF
         </a>
+
+        {/* Debug info */}
+        <div className="text-xs text-gray-500 mb-2">
+          File type: {file.type}, Size: {Math.round(file.size / 1024)}KB
+        </div>
+
         <Document
           file={URL.createObjectURL(file)}
           onLoadSuccess={onDocumentLoadSuccess}
+          onLoadError={onDocumentLoadError}
+          loading={<div className="py-4 text-center">Loading PDF...</div>}
+          noData={
+            <div className="py-4 text-center text-red-500">
+              No PDF file provided.
+            </div>
+          }
+          options={{
+            cMapUrl: "https://unpkg.com/pdfjs-dist@3.4.120/cmaps/",
+            cMapPacked: true,
+            standardFontDataUrl:
+              "https://unpkg.com/pdfjs-dist@3.4.120/standard_fonts/",
+          }}
         >
           {Array.from({ length: numPages }, (_, i) => (
-            <Page key={i} pageNumber={i + 1} width={window.innerWidth * 0.9} />
+            <Page
+              key={i}
+              pageNumber={i + 1}
+              width={window.innerWidth * 0.9}
+              renderTextLayer={true}
+              renderAnnotationLayer={true}
+              error={`Failed to load page ${i + 1}`}
+            />
           ))}
         </Document>
+
+        {/* Error state */}
+        {error && (
+          <div className="p-4 mt-4 bg-red-50 text-red-600 rounded-md">
+            <p className="font-medium">Error loading PDF:</p>
+            <p className="text-sm">{error.message}</p>
+            <p className="text-xs mt-2">
+              Try downloading the file to view it externally.
+            </p>
+          </div>
+        )}
+
+        {/* Loading state but no pages */}
+        {!loading && numPages === 0 && !error && (
+          <div className="p-4 mt-4 bg-yellow-50 text-yellow-600 rounded-md">
+            <p>
+              PDF loaded but no pages were found. The file may be empty or
+              corrupted.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
