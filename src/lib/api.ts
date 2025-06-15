@@ -222,4 +222,24 @@ export const aiGradingApi = {
     ),
 };
 
+// Grading API endpoints
+export const gradingApi = {
+  uploadSubmission: (
+    assignmentId: string,
+    studentId: string,
+    formData: FormData
+  ) => {
+    return axios.post(
+      `${API_URL}${API_PATH}/grading/uploadSubmission`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+  },
+};
+
 export default apiClient;

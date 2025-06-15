@@ -1,41 +1,8 @@
-import { useState, useEffect, useRef } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useState, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import {
-  Share2,
-  BarChart,
-  FileText,
-  FileUp,
-  Eye,
-  Edit,
-  CheckCircle,
-  Loader2,
-  RotateCcw,
-  AlertCircle,
-  Upload,
-  ArrowLeft,
-} from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Share2, Edit, CheckCircle, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -43,18 +10,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { assignmentApi } from "@/lib/api";
-import { classApi } from "@/lib/api";
-import { aiGradingApi } from "@/lib/api";
-import {
-  gradeSubmission,
-  updateGradingStatus,
-} from "@/service/aiGradingService";
-import { orchestrateSolutionAssessment } from "@/service/aiOrchestrationService";
-import { AssignmentDetail, StudentAssignment } from "@/types/class";
+import { AssignmentDetail } from "@/types/class";
 
 const AssignmentDetailPage = () => {
   const { assignmentId } = useParams<{ assignmentId: string }>();
